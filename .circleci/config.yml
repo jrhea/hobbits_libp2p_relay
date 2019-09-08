@@ -7,4 +7,6 @@ jobs:
       - checkout
       - run: git config --global --unset "url.ssh://git@github.com.insteadof" || true
       - run: sudo apt-get update && sudo apt-get install openjdk-11-jdk
-      - run: make java
+      - run: sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9 && echo "deb http://repos.azulsystems.com/debian stable main" | sudo tee /etc/apt/sources.list.d/zulu.list
+      - run: sudo apt install zulu-11
+      - run: JAVA_HOME="/usr/lib/jvm/zulu-11-amd64/" make java

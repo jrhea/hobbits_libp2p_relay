@@ -28,7 +28,7 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/project
-      - run: make java
+      - run: make java-bindings
 
 
 workflows:

@@ -1,6 +1,6 @@
 version: 2.1
 jobs:
-  default:
+  build:
     docker:
       - image: circleci/rust:1.35.0
     steps:

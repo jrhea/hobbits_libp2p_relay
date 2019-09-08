@@ -28,7 +28,7 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/project
-      - run: apt-get update && apt-get install build-essential
+      - run: sudo apt-get update && sudo apt-get install build-essential
       - run: make java-bindings
 
 

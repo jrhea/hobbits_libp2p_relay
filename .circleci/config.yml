@@ -36,6 +36,6 @@ workflows:
   default:
     jobs:
       - cbindings
-      - javabindings
+      - javabindings:
           requires:
             - cbindings

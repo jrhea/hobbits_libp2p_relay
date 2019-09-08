@@ -5,5 +5,7 @@ jobs:
         - image: circleci/rust:1.35.0
     steps:
       - checkout
+      - run: git config --global --unset "url.ssh://git@github.com.insteadof" || true
       - run: git config --global url."ssh://git@github.com:".insteadOf "https://github.com" || true
+      - run: git config -l
       - run: make c

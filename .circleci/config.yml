@@ -17,7 +17,7 @@ jobs:
       - checkout
       - run: git config --global --unset "url.ssh://git@github.com.insteadof" || true
       - run: git config -l
-      - run: make c-bindings
+      - run: make java-bindings
       - persist_to_workspace:
           root: ~/project
           paths:

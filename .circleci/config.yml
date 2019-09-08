@@ -1,43 +1,10 @@
 version: 2.1
-executors:
-  rust_executor:
+jobs:
+  default:
     docker:
       - image: circleci/rust:1.35.0
-    working_directory: ~/project
-
-  java_executor:
-    docker:
-      - image: circleci/openjdk:11.0.4-jdk-stretch
-    working_directory: ~/project
-
-jobs:
-  cbindings:
-    executor: rust_executor
     steps:
       - checkout
       - run: git config --global --unset "url.ssh://git@github.com.insteadof" || true
-      - run: git config -l
-      - run: make java-bindings
-      - persist_to_workspace:
-          root: ~/project
-          paths:
-            - ./
-
-  javabindings:
-    executor: java_executor
-    steps:
-      - attach_workspace:
-          at: ~/project
-      - run: sudo apt-get update && sudo apt-get install build-essential
-      - run: echo $JAVA_HOME && ls $JAVA_HOME
-      - run: make java-bindings
-
-
-workflows:
-  version: 2
-  default:
-    jobs:
-      - cbindings
-      - javabindings:
-          requires:
-            - cbindings
+      - run: sudo apt-get update && sudo apt-get install openjdk-11-jdk
+      - run: make java

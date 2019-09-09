@@ -10,3 +10,5 @@ jobs:
       - run: sudo apt update && sudo apt install zulu-11
       - run: JAVA_HOME="/usr/lib/jvm/zulu-11-amd64/" make java
       - run: ls -R ~/project/bin
+      - store_artifacts:
+          path: bin

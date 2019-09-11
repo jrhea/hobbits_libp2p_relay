@@ -14,8 +14,15 @@ java-bindings-ingress:
 	mkdir -p $(OUT_DIR)
 	$(CC) $(JBIND_DIR)/mothra-jni-ingress.c $(INCLUDES) $(JAVA_INCLUDES) $(JAVA_LIBS) $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-ingress.$(EXT)
 
-java-bindings-egress: mothra.class
+java-bindings-egress-build: mothra.class
 	$(CC) $(JBIND_DIR)/mothra-jni-egress.c $(INCLUDES) -L$(OUT_DIR) -lmothra $(JAVA_INCLUDES) $(JAVA_LIBS) $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-egress.$(EXT)
+
+ifeq ($(OS), darwin)
+java-bindings-egress: java-bindings-egress-build
+	install_name_tool -change $(OUT_DIR)/release/deps/libmothra.dylib @loader_path/libmothra.dylib $(OUT_DIR)/libmothra-egress.dylib
+else
+java-bindings-egress: java-bindings-egress-build
+endif
 
 %.class:
 	javac $*.java -d $(OUT_DIR)/

@@ -1,11 +1,11 @@
 package net.p2p;
 
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class mothra {
-    public static final String NAME = System.getProperty("user.dir") + "/libmothra-egress.dylib"; 
+    public static final String NAME = "mothra-egress";
     public static Function<String, Boolean> DiscoveryMessage;
     public static BiFunction<String, byte[], Boolean> ReceivedGossipMessage;
     public static QuadFunction<String, Integer, String, byte[], Boolean> ReceivedRPCMessage;
@@ -24,9 +24,10 @@ public class mothra {
     }
     static {
         try {
-            System.load ( NAME ) ;
+            System.loadLibrary ( NAME ) ;
         } catch (UnsatisfiedLinkError e) {
           System.err.println("Native code library failed to load.\n" + e);
+          e.printStackTrace();
           System.exit(1);
         }
     }

@@ -3,6 +3,7 @@ CC:=gcc
 ifeq ($(OS), linux)
 	EXT:=so
 	OS_LFLAGS:=
+	JAVA_HOME:=$(shell java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | sed 's/\s*java.home = //' | sed 's/\/jre//')
 else ifeq ($(OS), darwin)
 	EXT:=dylib
 	OS_LFLAGS:=-mmacosx-version-min=$(shell defaults read loginwindow SystemVersionStampAsString) -framework CoreFoundation -framework Security

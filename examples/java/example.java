@@ -26,7 +26,7 @@ public class example {
             if(messageType.equals("GOSSIP")){
                 System.out.print("Enter a message to GOSSIP: ");
                 String message = scanner.next();
-                mothra.SendGossip("beacon_block".getBytes(),message.getBytes());
+                mothra.SendGossip("/eth2/beacon_block/ssz".getBytes(),message.getBytes());
             } else if(messageType.equals("RPC")){
                 System.out.print("Enter Req/Resp (0/1): ");
                 int req_resp = Integer.parseInt(scanner.next());

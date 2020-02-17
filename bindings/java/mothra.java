@@ -5,7 +5,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class mothra {
-    public static final String NAME = "mothra-egress";
+    public static final String CORE_NAME = "mothra";
+    public static final String EGRESS_NAME = "mothra-egress";
+    public static final String INGRESS_NAME = "mothra-ingress";
     public static Function<String, Boolean> DiscoveryMessage;
     public static BiFunction<String, byte[], Boolean> ReceivedGossipMessage;
     public static QuadFunction<String, Integer, String, byte[], Boolean> ReceivedRPCMessage;
@@ -24,7 +26,9 @@ public class mothra {
     }
     static {
         try {
-            System.loadLibrary ( NAME ) ;
+            System.loadLibrary ( CORE_NAME ) ;
+            System.loadLibrary ( EGRESS_NAME ) ;
+            System.loadLibrary ( INGRESS_NAME ) ;
         } catch (UnsatisfiedLinkError e) {
           System.err.println("Native code library failed to load.\n" + e);
           e.printStackTrace();

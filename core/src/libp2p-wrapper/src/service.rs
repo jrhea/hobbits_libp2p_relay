@@ -5,7 +5,6 @@ use crate::multiaddr::Protocol;
 use crate::rpc::{RPCEvent};
 use crate::NetworkConfig;
 use crate::{Topic, TopicHash};
-use crate::{BEACON_ATTESTATION_TOPIC, BEACON_BLOCK_TOPIC};
 use futures::prelude::*;
 use futures::Stream;
 use libp2p::core::{
@@ -114,23 +113,6 @@ impl Service {
         // subscribe to default gossipsub topics
         let mut topics = vec![];
 
-
-       /* Here we subscribe to all the required gossipsub topics required for interop.
-         * The topic builder adds the required prefix and postfix to the hardcoded topics that we
-         * must subscribe to.
-         */
-        let topic_builder = |topic| {
-            Topic::new(format!(
-                "/{}/{}/{}",
-                TOPIC_PREFIX, topic, TOPIC_ENCODING_POSTFIX,
-            ))
-        };
-        topics.push(topic_builder(BEACON_BLOCK_TOPIC));
-        topics.push(topic_builder(BEACON_ATTESTATION_TOPIC));
-        topics.push(topic_builder(VOLUNTARY_EXIT_TOPIC));
-        topics.push(topic_builder(PROPOSER_SLASHING_TOPIC));
-        topics.push(topic_builder(ATTESTER_SLASHING_TOPIC));
-
         // Add any topics specified by the user
         topics.append(
             &mut config
@@ -175,23 +157,13 @@ impl Stream for Service {
                         message,
                     } => {
                         //debug!(self.log, "Gossipsub message received"; "Message" => format!("{:?}", topics[0]));
-                        if topics[0].to_string() == format!("/{}/{}/{}",TOPIC_PREFIX, BEACON_BLOCK_TOPIC, TOPIC_ENCODING_POSTFIX) {
-                            self.tx.lock().unwrap().send(Message {
-                                category: GOSSIP.to_string(),
-                                command: topics[0].to_string(),
-                                req_resp: Default::default(),
-                                peer: Default::default(),
-                                value: message.clone()
-                            }).unwrap();
-                        } else if topics[0].to_string() == format!("/{}/{}/{}",TOPIC_PREFIX, BEACON_ATTESTATION_TOPIC, TOPIC_ENCODING_POSTFIX) {
-                            self.tx.lock().unwrap().send(Message {
-                                category: GOSSIP.to_string(),
-                                command: topics[0].to_string(),
-                                req_resp: Default::default(),
-                                peer: Default::default(),
-                                value: message.clone()
-                            }).unwrap();
-                        } 
+                        self.tx.lock().unwrap().send(Message {
+                            category: GOSSIP.to_string(),
+                            command: topics[0].to_string(),
+                            req_resp: Default::default(),
+                            peer: Default::default(),
+                            value: message.clone()
+                        }).unwrap();
                         return Ok(Async::Ready(Some(Libp2pEvent::PubsubMessage {
                             source,
                             topics,

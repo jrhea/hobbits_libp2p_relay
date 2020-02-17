@@ -12,7 +12,7 @@ use tokio::timer::Interval;
 use tokio_timer::clock::Clock;
 use futures::Future;
 use clap::{App, Arg, AppSettings};
-use libp2p_wrapper::{NetworkConfig, Topic, BEACON_ATTESTATION_TOPIC, BEACON_BLOCK_TOPIC,Message,GOSSIP,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
+use libp2p_wrapper::{NetworkConfig,Topic,Message,GOSSIP,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
 use tokio::sync::mpsc;
 use super::network::{Network,NetworkMessage,OutgoingMessage};
 
@@ -176,42 +176,45 @@ pub fn config(args: Vec<String>) -> ArgMatches<'static> {
     .arg(
         Arg::with_name("listen-address")
             .long("listen-address")
-            .value_name("Address")
-            .help("The address artemis will listen for UDP and TCP connections. (default 127.0.0.1).")
+            .value_name("ADDRESS")
+            .help("The address the client will listen for UDP and TCP connections. (default 127.0.0.1).")
+            .default_value("127.0.0.1")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("port")
+            .long("port")
+            .value_name("PORT")
+            .help("The TCP/UDP port to listen on. The UDP port can be modified by the --discovery-port flag.")
             .takes_value(true),
     )
     .arg(
         Arg::with_name("maxpeers")
             .long("maxpeers")
             .help("The maximum number of peers (default 10).")
+            .default_value("10")
             .takes_value(true),
     )
     .arg(
         Arg::with_name("boot-nodes")
             .long("boot-nodes")
             .allow_hyphen_values(true)
-            .value_name("BOOTNODES")
+            .value_name("ENR-LIST")
             .help("One or more comma-delimited base64-encoded ENR's to bootstrap the p2p network.")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("port")
-            .long("port")
-            .value_name("Artemis Port")
-            .help("The TCP/UDP port to listen on. The UDP port can be modified by the --discovery-port flag.")
             .takes_value(true),
     )
     .arg(
         Arg::with_name("discovery-port")
             .long("disc-port")
-            .value_name("DiscoveryPort")
+            .value_name("PORT")
             .help("The discovery UDP port.")
+            .default_value("9000")
             .takes_value(true),
     )
     .arg(
         Arg::with_name("discovery-address")
             .long("discovery-address")
-            .value_name("Address")
+            .value_name("ADDRESS")
             .help("The IP address to broadcast to other peers on how to reach this node.")
             .takes_value(true),
     )
@@ -233,8 +236,7 @@ pub fn config(args: Vec<String>) -> ArgMatches<'static> {
         Arg::with_name("debug-level")
             .long("debug-level")
             .value_name("LEVEL")
-            .short("s")
-            .help("The title of the spec constants for chain config.")
+            .help("Possible values: info, debug, trace, warn, error, crit")
             .takes_value(true)
             .possible_values(&["info", "debug", "trace", "warn", "error", "crit"])
             .default_value("info"),

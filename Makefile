@@ -2,9 +2,11 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:=c java c-bindings java-bindings c-examples java-examples clean
+.PHONY:=c-mash dotnet-mash java-mash c dotnet java c-bindings java-bindings java-bindings-ingress java-bindings-egress c-examples dotnet-examples java-examples clean-bin clean
 
 c-mash: clean c
+
+dotnet-mash: clean dotnet
 
 java-mash: clean java
 

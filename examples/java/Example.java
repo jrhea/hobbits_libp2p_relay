@@ -4,19 +4,20 @@ import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import net.p2p.mothra;
+import net.p2p.Mothra;
 
-public class example {
+public class Example {
     public static void main(String[] args) throws InterruptedException {
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
-        argList.add(0,"./example");
+        argList.add(0,"./Example");
         final String[] processed_args = argList.toArray(new String[0]);
         Runnable run = () -> {
-            mothra.Init();
-            mothra.Start(processed_args);
-            mothra.DiscoveryMessage = example::printDiscoveryMessage;
-            mothra.ReceivedGossipMessage = example::printGossipMessage;
-            mothra.ReceivedRPCMessage = example::printRPCMessage;
+            Mothra.DiscoveryMessage = Example::printDiscoveryMessage;
+            Mothra.ReceivedGossipMessage = Example::printGossipMessage;
+            Mothra.ReceivedRPCMessage = Example::printRPCMessage;
+            Mothra.Init();
+            Mothra.Start(processed_args);
+
         };
         Executors.newSingleThreadExecutor().execute(run);
         Scanner scanner = new Scanner(System.in);
@@ -26,7 +27,7 @@ public class example {
             if(messageType.equals("GOSSIP")){
                 System.out.print("Enter a message to GOSSIP: ");
                 String message = scanner.next();
-                mothra.SendGossip("/eth2/beacon_block/ssz".getBytes(),message.getBytes());
+                Mothra.SendGossip("/eth2/beacon_block/ssz".getBytes(),message.getBytes());
             } else if(messageType.equals("RPC")){
                 System.out.print("Enter Req/Resp (0/1): ");
                 int req_resp = Integer.parseInt(scanner.next());
@@ -34,7 +35,7 @@ public class example {
                 String peer = scanner.next();
                 System.out.print("Enter a message: ");
                 String message = scanner.next();
-                mothra.SendRPC("HELLO".getBytes(),req_resp,peer.getBytes(),message.getBytes());
+                Mothra.SendRPC("HELLO".getBytes(),req_resp,peer.getBytes(),message.getBytes());
             }
         }
 

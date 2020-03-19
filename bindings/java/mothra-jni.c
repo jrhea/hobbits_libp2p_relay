@@ -2,31 +2,90 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include "mothra-jni-ingress.h"
+#include "mothra.h"
+#include "mothra-jni.h"
 
 static JavaVM *jvm;
 
-JNIEXPORT void JNICALL Java_net_p2p_mothra_Init(JNIEnv* jenv, jclass jcls)
+JNIEXPORT void JNICALL Java_net_p2p_Mothra_Init(JNIEnv* jenv, jclass jcls)
 {
    jint rs = (*jenv)->GetJavaVM(jenv, &jvm);
    assert (rs == JNI_OK);
+   libp2p_register_handlers(discovered_peer_callback,receive_gossip_callback,receive_rpc_callback);
 }
 
-void (*s_discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length);
-void (*s_receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
-void (*s_receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
-
-void ingress_register_handlers(
-    void (*discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length), 
-    void (*receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length), 
-    void (*receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length)
-) {
-    s_discovered_peer_ptr = discovered_peer_ptr;
-    s_receive_gossip_ptr = receive_gossip_ptr;
-    s_receive_rpc_ptr = receive_rpc_ptr;
+JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobjectArray jargs){
+    int length = (*jenv)->GetArrayLength(jenv, jargs);
+    char **args = (char **) malloc(length * sizeof(char *));
+    if(args){
+        for (int i=0; i<length; i++) {
+            jstring jarg = (jstring) ((*jenv)->GetObjectArrayElement(jenv, jargs, i));
+            const char *arg = (*jenv)->GetStringUTFChars(jenv, jarg, 0);
+            args[i] = (char*) malloc(strlen(arg)*sizeof(char*));
+            strcpy(args[i],arg);
+            (*jenv)->ReleaseStringUTFChars(jenv, jarg, (const char *)arg);
+        }
+    }
+    else{
+        return;
+    }
+    libp2p_start(args, length);
+    for (int i=0; i<length; i++) {
+        free(args[i]);
+    }
+    free(args);
 }
 
-void discovered_peer(const unsigned char* peer, int peer_length) {
+JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendGossip(JNIEnv *jenv, jclass jcls, jbyteArray jtopic, jbyteArray jdata){
+    int data_length = (*jenv)->GetArrayLength(jenv, jdata);
+    int topic_length = (*jenv)->GetArrayLength(jenv, jtopic);
+    jbyte *topic = (jbyte *) 0 ;
+    jbyte *data = (jbyte *) 0 ;
+    jboolean isCopy = JNI_TRUE;
+    if (jtopic) {
+        topic = (*jenv)->GetByteArrayElements(jenv,jtopic,&isCopy);
+        if (!topic) return ;
+    }
+    if (jdata) {
+        data = (*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
+        if (!data) return ;
+    }
+    libp2p_send_gossip(topic,topic_length,data,data_length);
+    if (topic) (*jenv)->ReleaseByteArrayElements(jenv, jtopic, topic, 0);
+    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
+}
+
+JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendRPC(JNIEnv *jenv, jclass jcls, jbyteArray jmethod, jint jreq_resp, jbyteArray jpeer, jbyteArray jdata){
+    int data_length = (*jenv)->GetArrayLength(jenv, jdata);
+    int method_length = (*jenv)->GetArrayLength(jenv, jmethod);
+    int peer_length = (*jenv)->GetArrayLength(jenv, jpeer);
+    jbyte *data = (jbyte *) 0 ;
+    jbyte *method = (jbyte *) 0 ;
+    jbyte *peer = (jbyte *) 0 ;
+    jboolean isCopy = JNI_TRUE;
+    if (jdata) {
+        data = (*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
+        if (!data) return ;
+    }
+    if (jpeer) {
+        peer = (*jenv)->GetByteArrayElements(jenv,jpeer,&isCopy);
+        if (!peer) return ;
+    }
+    if (jmethod) {
+        method = (*jenv)->GetByteArrayElements(jenv,jmethod,&isCopy);
+        if (!method) return ;
+    }
+    if (jreq_resp == 0){
+        libp2p_send_rpc_request(method,method_length,peer,peer_length,data,data_length);
+    } else if (jreq_resp == 1){
+        libp2p_send_rpc_response(method,method_length,peer,peer_length,data,data_length);
+    }
+    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
+    if (peer) (*jenv)->ReleaseByteArrayElements(jenv, jpeer, peer, 0);
+    if (method) (*jenv)->ReleaseByteArrayElements(jenv, jmethod, method, 0);
+}
+
+void discovered_peer_callback(const unsigned char* peer, int peer_length) {
     JNIEnv *jenv;
     jint rs = (*jvm)->AttachCurrentThread(jvm, (void**)&jenv, NULL);
     assert (rs == JNI_OK);
@@ -34,7 +93,7 @@ void discovered_peer(const unsigned char* peer, int peer_length) {
         jclass mothra_class;
         jmethodID discoveredpeer_method;
         jbyteArray jpeer;
-          mothra_class = (*jenv)->FindClass(jenv, "net/p2p/mothra");
+          mothra_class = (*jenv)->FindClass(jenv, "net/p2p/Mothra");
         if(!mothra_class){
             detach(jenv);
         }
@@ -53,7 +112,7 @@ void discovered_peer(const unsigned char* peer, int peer_length) {
     }
 }
 
-void receive_gossip(const unsigned char* topic, int topic_length, unsigned char* data, int data_length) {
+void receive_gossip_callback(const unsigned char* topic, int topic_length, unsigned char* data, int data_length) {
     JNIEnv *jenv;
     jint rs = (*jvm)->AttachCurrentThread(jvm, (void**)&jenv, NULL);
     assert (rs == JNI_OK);
@@ -62,7 +121,7 @@ void receive_gossip(const unsigned char* topic, int topic_length, unsigned char*
         jmethodID receivegossip_method;
         jbyteArray jtopic;
         jbyteArray jdata;
-        mothra_class = (*jenv)->FindClass(jenv, "net/p2p/mothra");
+        mothra_class = (*jenv)->FindClass(jenv, "net/p2p/Mothra");
         if(!mothra_class){
             detach(jenv);
         }
@@ -83,7 +142,7 @@ void receive_gossip(const unsigned char* topic, int topic_length, unsigned char*
     }
 }
 
-void receive_rpc(const unsigned char* method, int method_length, int req_resp, const unsigned char* peer, int peer_length, unsigned char* data, int data_length) {
+void receive_rpc_callback(const unsigned char* method, int method_length, int req_resp, const unsigned char* peer, int peer_length, unsigned char* data, int data_length) {
     JNIEnv *jenv;
     jint rs = (*jvm)->AttachCurrentThread(jvm, (void**)&jenv, NULL);
     assert (rs == JNI_OK);
@@ -94,7 +153,7 @@ void receive_rpc(const unsigned char* method, int method_length, int req_resp, c
         jint jreq_resp;
         jbyteArray jpeer;
         jbyteArray jdata;
-        mothra_class = (*jenv)->FindClass(jenv, "net/p2p/mothra");
+        mothra_class = (*jenv)->FindClass(jenv, "net/p2p/Mothra");
         if(!mothra_class){
             detach(jenv);
         }
@@ -118,7 +177,7 @@ void receive_rpc(const unsigned char* method, int method_length, int req_resp, c
     }
 }
 
-void detach(JNIEnv* jenv){
+static void detach(JNIEnv* jenv){
     if((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
     }

@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:=c-mash dotnet-mash java-mash c dotnet java c-bindings java-bindings java-bindings-ingress java-bindings-egress c-examples dotnet-examples java-examples clean-bin clean
+.PHONY:=c-mash dotnet-mash java-mash c dotnet java rust-bindings c-bindings java-bindings c-examples dotnet-examples java-examples clean-bin clean
 
 c-mash: clean c
 
@@ -21,7 +21,7 @@ c-examples: c-bindings
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
 
-dotnet-examples: c-bindings
+dotnet-examples: rust-bindings
 	@echo ""
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
@@ -31,25 +31,17 @@ java-examples: java-bindings
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
 
-c-bindings:
-	 @echo ""
-	 @echo Building C bindings
-	 cd $(BIND_DIR) && make $@
-	 @echo ""
-	 @echo Building Rust bindings
-	 cd $(CORE_DIR) && make $@
-
-java-bindings: java-bindings-ingress java-bindings-egress
-
-java-bindings-ingress:
-	@echo ""
-	@echo Building Java bindings
-	cd $(BIND_DIR) && make $@
+rust-bindings:
 	@echo ""
 	@echo Building Rust bindings
 	cd $(CORE_DIR) && make $@
 
-java-bindings-egress:
+c-bindings: rust-bindings
+	 @echo ""
+	 @echo Building C bindings
+	 cd $(BIND_DIR) && make $@
+
+java-bindings: rust-bindings
 	@echo ""
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@

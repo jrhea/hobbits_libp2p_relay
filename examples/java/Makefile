@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 include ../../config.mk
 
-java-examples: example.class
+java-examples: Example.class
 
 %.class:
 	javac -cp $(OUT_DIR)/mothra.jar $*.java -d $(OUT_DIR)/

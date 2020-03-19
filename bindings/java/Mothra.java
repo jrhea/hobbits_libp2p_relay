@@ -5,8 +5,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class Mothra {
-    public static final String CORE_NAME = "mothra";
-    public static final String JNI_NAME = "mothra-jni";
+    public static final String MOTHRA = "mothra-jni";
     public static Function<String, Boolean> DiscoveryMessage;
     public static BiFunction<String, byte[], Boolean> ReceivedGossipMessage;
     public static QuadFunction<String, Integer, String, byte[], Boolean> ReceivedRPCMessage;
@@ -25,8 +24,7 @@ public class Mothra {
     }
     static {
         try {
-            System.loadLibrary ( CORE_NAME ) ;
-            System.loadLibrary ( JNI_NAME ) ;
+            System.loadLibrary ( MOTHRA ) ;
         } catch (UnsatisfiedLinkError e) {
           System.err.println("Native code library failed to load.\n" + e);
           e.printStackTrace();

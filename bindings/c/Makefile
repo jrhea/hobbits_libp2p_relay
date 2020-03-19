@@ -3,18 +3,14 @@ SHELL := /bin/sh
 include ../../config.mk
 
 CFLAGS:=-O2 -fPIC
-LFLAGS =-v
-INCLUDES = -I$(CBIND_DIR)/
-OBJ:=$(OUT_DIR)/libmothra-ingress.obj
-TARGET:=$(OUT_DIR)/libmothra-ingress.a
+LFLAGS:=-shared
+INCLUDES:=-I$(CBIND_DIR)/
 
 .PHONY: c-bindings clean	
 
 c-bindings: 
 	mkdir -p $(OUT_DIR)
-	rm -f $(TARGET)
-	$(CC) $(INCLUDES) -c $(CBIND_DIR)/mothra-ingress.c $(CFLAGS) -o $(OBJ)
-	$(AR) -r $(LFLAGS) $(TARGET) $(OBJ)
+	$(CC) $(INCLUDES) -c $(CBIND_DIR)/mothra-ingress.c $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-ingress.$(EXT)
 
 clean:
 	rm -rf $(TARGET)

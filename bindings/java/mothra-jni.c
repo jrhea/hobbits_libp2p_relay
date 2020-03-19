@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include "mothra.h"
 #include "mothra-jni.h"
 
 static JavaVM *jvm;

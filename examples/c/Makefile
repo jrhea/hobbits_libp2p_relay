@@ -8,7 +8,7 @@ INCLUDES:=-I$(CBIND_DIR)
 .PHONY : examples clean
 
 c-examples:
-	$(CC) example.c $(CBIND_DIR)/mothra-ingress.c $(INCLUDES) -L$(OUT_DIR)/ -lmothra $(OS_CFLAGS) $(CFLAGS) -o $(OUT_DIR)/example
+	$(CC) example.c $(CBIND_DIR)/mothra-c.c $(INCLUDES) -L$(OUT_DIR)/ -lmothra $(OS_CFLAGS) $(CFLAGS) -o $(OUT_DIR)/example
 ifeq ($(OS), darwin)
 	install_name_tool -change $(OUT_DIR)/release/deps/libmothra.dylib @rpath/libmothra.dylib $(OUT_DIR)/example
 	install_name_tool -add_rpath @loader_path $(OUT_DIR)/example

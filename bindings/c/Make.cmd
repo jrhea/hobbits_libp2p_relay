@@ -7,8 +7,8 @@ set CBIND_DIR=%BIND_DIR%\c
 
 set CFLAGS=/W4 /O2 /EHsc /MD
 set LFLAGS=
-set OBJ=%OUT_DIR%\mothra-ingress.obj
-set TARGET=%OUT_DIR%\mothra-ingress.lib
+set OBJ=%OUT_DIR%\mothra-c.obj
+set TARGET=%OUT_DIR%\mothra-c.lib
 
 if not exist "%OUT_DIR%" ( mkdir "%OUT_DIR%" )
 
@@ -16,7 +16,7 @@ if not exist "%OUT_DIR%" ( mkdir "%OUT_DIR%" )
 if exist "%TARGET%" ( del "%TARGET%" )
 
 @echo ## Compiling "%OBJ%"
-cl /c /LD %CFLAGS% "%CBIND_DIR%/mothra-ingress.c" /Fo"%OBJ%"
+cl /c /LD %CFLAGS% "%CBIND_DIR%/mothra-c.c" /Fo"%OBJ%"
 
-@echo ## Creating static ingress library "%TARGET%"
+@echo ## Creating static c library "%TARGET%"
 lib %LFLAGS% "%OBJ%" /out:"%TARGET%"

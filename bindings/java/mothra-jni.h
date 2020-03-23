@@ -1,7 +1,7 @@
 #include <jni.h>
 #ifndef _MOTHRA_JNI_H_
 #define _MOTHRA_JNI_H_
-#include "mothra.h"
+#include "mothra-c.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

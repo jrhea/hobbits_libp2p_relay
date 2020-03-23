@@ -10,7 +10,7 @@ INCLUDES:=-I$(CBIND_DIR)/
 
 c-bindings: 
 	mkdir -p $(OUT_DIR)
-	$(CC) $(INCLUDES) -c $(CBIND_DIR)/mothra-ingress.c $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-ingress.$(EXT)
+	$(CC) $(INCLUDES) -c $(CBIND_DIR)/mothra-c.c $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-c.$(EXT)
 
 clean:
 	rm -rf $(TARGET)

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "mothra.h"
+#include "mothra-c.h"
 
 void (*s_discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length);
 void (*s_receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);

@@ -1,5 +1,5 @@
-#ifndef _MOTHRA_H_
-#define _MOTHRA_H_
+#ifndef _MOTHRA_C_H_
+#define _MOTHRA_C_H_
 
 #ifdef _WIN64
    #define EXPORT __declspec(dllexport)
@@ -40,4 +40,4 @@ EXPORT void receive_rpc(const unsigned char* method_utf8, int method_length, int
 }
 #endif
 
-#endif // _MOTHRA_H_
+#endif // _MOTHRA_C_H_

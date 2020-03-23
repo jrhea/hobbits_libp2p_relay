@@ -15,12 +15,12 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Example
+namespace Bindings
 {
-    internal static class MothraInterop
+    public static class Mothra
     {
         // mothra.dll on Windows, libmothra.so on Linux, libmotha.dylib on OSX
-        private const string DllName = "mothra";
+        private const string DllName = "libmothra";
         
         [DllImport(DllName, EntryPoint = "libp2p_start", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void Start([In, Out] string[] args, int length);

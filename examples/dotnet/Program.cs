@@ -17,6 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Bindings;
 
 namespace Example
 {
@@ -66,9 +67,9 @@ namespace Example
         private static GCHandle s_receiveGossipHandle;
         private static GCHandle s_receiveRpcHandle;
 
-        private static MothraInterop.DiscoveredPeer s_discoveredPeer;
-        private static MothraInterop.ReceiveGossip s_receiveGossip;
-        private static MothraInterop.ReceiveRpc s_receiveRpc;
+        private static Mothra.DiscoveredPeer s_discoveredPeer;
+        private static Mothra.ReceiveGossip s_receiveGossip;
+        private static Mothra.ReceiveRpc s_receiveRpc;
 
         private static IntPtr s_discoveredPeerPtr;
         private static IntPtr s_receiveGossipPtr;
@@ -108,9 +109,9 @@ namespace Example
             // MothraInterop.DiscoveredPeer discoveredPeer = new MothraInterop.DiscoveredPeer(OnDiscoveredPeer);
             // MothraInterop.ReceiveGossip receiveGossip = new MothraInterop.ReceiveGossip(OnReceiveGossip);
             // MothraInterop.ReceiveRpc receiveRpc = new MothraInterop.ReceiveRpc(OnReceiveRpc);
-            s_discoveredPeer = new MothraInterop.DiscoveredPeer(s_handlers.OnDiscoveredPeer);
-            s_receiveGossip = new MothraInterop.ReceiveGossip(s_handlers.OnReceiveGossip);
-            s_receiveRpc = new MothraInterop.ReceiveRpc(s_handlers.OnReceiveRpc);
+            s_discoveredPeer = new Mothra.DiscoveredPeer(s_handlers.OnDiscoveredPeer);
+            s_receiveGossip = new Mothra.ReceiveGossip(s_handlers.OnReceiveGossip);
+            s_receiveRpc = new Mothra.ReceiveRpc(s_handlers.OnReceiveRpc);
 
             // as delegates
             // s_discoveredPeerHandle = GCHandle.Alloc(discoveredPeer);
@@ -137,13 +138,13 @@ namespace Example
             // s_receiveRpcHandle = GCHandle.Alloc(s_receiveRpcPtr, GCHandleType.Pinned);
 
             //MothraInterop.RegisterHandlers(discoveredPeer, receiveGossip, receiveRpc);
-            MothraInterop.RegisterHandlers(s_discoveredPeer, s_receiveGossip, s_receiveRpc);
+            Mothra.RegisterHandlers(s_discoveredPeer, s_receiveGossip, s_receiveRpc);
             Thread.Sleep(1000);
             //MothraInterop.RegisterHandlers(discoveredPeerPtr, receiveGossipPtr, receiveRpcPtr);
             // MothraInterop.RegisterHandlers(s_discoveredPeerPtr, s_receiveGossipPtr, s_receiveRpcPtr);
 
             s_args = GCHandle.Alloc(args);
-            MothraInterop.Start(args, args.Length);
+            Mothra.Start(args, args.Length);
         }
 
         public static unsafe void SendGossip(string topic, ReadOnlySpan<byte> data)
@@ -152,7 +153,7 @@ namespace Example
             fixed (byte* topicUtf8Ptr = topicUtf8)
             fixed (byte* dataPtr = data)
             {
-                MothraInterop.SendGossip(topicUtf8Ptr, topicUtf8.Length, dataPtr, data.Length);
+                Mothra.SendGossip(topicUtf8Ptr, topicUtf8.Length, dataPtr, data.Length);
             }
         }
     }

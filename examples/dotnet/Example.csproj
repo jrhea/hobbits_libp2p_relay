@@ -13,28 +13,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup Condition="Exists('..\..\bin\libmothra.so')">
-    <None Include="..\..\bin\libmothra.so" Link="libmothra.so">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+  <ItemGroup>
+    <Reference Include="Mothra">
+      <HintPath>..\..\bin\dotnet\Mothra.dll</HintPath>
+    </Reference>
   </ItemGroup>
-
-  <ItemGroup Condition="Exists('..\..\bin\libmothra.dylib')">
-    <None Include="..\..\bin\libmothra.dylib" Link="libmothra.dylib">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup Condition="Exists('..\..\bin\mothra.dll')">
-    <None Include="..\..\bin\mothra.dll" Link="mothra.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\bin\libcrypto*.*">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\bin\libssl*.*">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

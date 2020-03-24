@@ -5,16 +5,6 @@ void (*s_discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length);
 void (*s_receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
 void (*s_receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
 
-void ingress_register_handlers(
-    void (*discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length), 
-    void (*receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length), 
-    void (*receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length)
-) {
-    s_discovered_peer_ptr = discovered_peer_ptr;
-    s_receive_gossip_ptr = receive_gossip_ptr;
-    s_receive_rpc_ptr = receive_rpc_ptr;
-}
-
 void discovered_peer(const unsigned char* peer_utf8, int peer_length) {
     //printf("bind: peer=%.*s\n", peer_length, peer_utf8);
     s_discovered_peer_ptr(peer_utf8, peer_length);

@@ -3,7 +3,6 @@ name = "mothra"
 version = "0.0.1"
 authors = ["Jonny Rhea <jonny.rhea@consensys.net>"]
 edition = "2018"
-build = "build.rs"
 include = [
     "**/*.rs",
     "Cargo.toml"

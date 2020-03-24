@@ -12,9 +12,13 @@ java-mash: clean java
 
 c: clean-bin c-examples
 
+rust: clean-bin rust-examples
+
 dotnet: clean-bin dotnet-examples
 
 java: clean-bin java-examples
+
+rust-examples: rust-bindings
 
 c-examples: c-bindings
 	@echo ""
@@ -31,20 +35,22 @@ java-examples: java-bindings
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
 
-c-bindings:
-	@echo ""
-	@echo Building C bindings
-	cd $(BIND_DIR) && make $@
+rust-bindings:
 	@echo ""
 	@echo Building Rust bindings
 	cd $(CORE_DIR) && make $@
 
-dotnet-bindings: c-bindings
+c-bindings: rust-bindings
+	@echo ""
+	@echo Building C bindings
+	cd $(BIND_DIR) && make $@
+
+dotnet-bindings: rust-bindings
 	@echo ""
 	@echo Building .Net bindings
 	cd $(BIND_DIR) && make $@
 
-java-bindings: c-bindings
+java-bindings: rust-bindings
 	@echo ""
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@

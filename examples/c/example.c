@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "mothra.h"
+#include "mothra-c.h"
 
 #define sleep_seconds 5
 

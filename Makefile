@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:=c-mash dotnet-mash java-mash c dotnet java c-bindings java-bindings c-examples dotnet-examples java-examples clean-bin clean
+.PHONY:=c-mash dotnet-mash java-mash c dotnet java c-bindings dotnet-bindings java-bindings c-examples dotnet-examples java-examples clean-bin clean
 
 c-mash: clean c
 
@@ -21,7 +21,7 @@ c-examples: c-bindings
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
 
-dotnet-examples: c-bindings
+dotnet-examples: dotnet-bindings
 	@echo ""
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
@@ -38,6 +38,11 @@ c-bindings:
 	@echo ""
 	@echo Building Rust bindings
 	cd $(CORE_DIR) && make $@
+
+dotnet-bindings: c-bindings
+	@echo ""
+	@echo Building .Net bindings
+	cd $(BIND_DIR) && make $@
 
 java-bindings: c-bindings
 	@echo ""

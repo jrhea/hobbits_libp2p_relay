@@ -17,6 +17,7 @@ OUT_DIR:=$(ROOT_DIR)/bin
 CORE_DIR:=$(ROOT_DIR)/core
 BIND_DIR:=$(ROOT_DIR)/bindings
 CBIND_DIR:=$(BIND_DIR)/c
+DBIND_DIR:=$(BIND_DIR)/dotnet
 JBIND_DIR:=$(BIND_DIR)/java
 EXAMPLES_DIR:=$(ROOT_DIR)/examples
 $(shell mkdir -p $(OUT_DIR))

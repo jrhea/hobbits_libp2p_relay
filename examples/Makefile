@@ -13,4 +13,5 @@ java-examples:
 
 clean:
 	cd c && make $@
+	cd dotnet && make $@
 	cd java && make $@

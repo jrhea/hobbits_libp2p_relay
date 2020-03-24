@@ -13,5 +13,4 @@ c-bindings:
 	$(CC) $(INCLUDES) -c $(CBIND_DIR)/mothra-c.c $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-c.$(EXT)
 
 clean:
-	rm -rf $(TARGET)
-	rm -rf $(OBJ)
+	rm -rf $(OUT_DIR)/libmothra-c.$(EXT)

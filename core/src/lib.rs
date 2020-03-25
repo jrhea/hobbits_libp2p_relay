@@ -15,7 +15,6 @@ use cast::i8;
 use slog::{info, debug, warn, o, Drain};
 use env_logger::{Builder, Env};
 use libp2p_wrapper::{Message,GOSSIP,RPC,DISCOVERY};
-use mothra_api::api;
 
 #[derive(Debug)]
 struct Global {
@@ -104,13 +103,13 @@ pub extern "C" fn libp2p_start(args_c_char: *mut *mut c_char, length: isize) {
             }
         }
     }
-    let args = api::config(args_vec);
+    let args = mothra_api::config(args_vec);
     let (mut tx1, rx1) = channel();
     let (tx2, rx2) = channel();
 
     let nlog = log.clone();
     thread::spawn(move || {
-        api::start(args, &tx2, &rx1, nlog.new(o!("API" => "start()")));
+        mothra_api::start(args, &tx2, &rx1, nlog.new(o!("API" => "start()")));
     });
 
     set_tx!(&RefCell::new(Some(tx1)));

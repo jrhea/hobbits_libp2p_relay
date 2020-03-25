@@ -22,7 +22,7 @@ rust-examples: rust-bindings
 	@echo ""
 	@echo Building examples
 	cd $(EXAMPLES_DIR) && make $@
-	
+
 c-examples: c-bindings
 	@echo ""
 	@echo Building examples
@@ -43,17 +43,22 @@ rust-bindings:
 	@echo Building Rust bindings
 	cd $(CORE_DIR) && make $@
 
-c-bindings: rust-bindings
+ffi-bindings:
+	@echo ""
+	@echo Building FFI bindings
+	cd $(CORE_DIR) && make $@
+
+c-bindings: ffi-bindings
 	@echo ""
 	@echo Building C bindings
 	cd $(BIND_DIR) && make $@
 
-dotnet-bindings: rust-bindings
+dotnet-bindings: ffi-bindings
 	@echo ""
 	@echo Building .Net bindings
 	cd $(BIND_DIR) && make $@
 
-java-bindings: rust-bindings
+java-bindings: ffi-bindings
 	@echo ""
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@

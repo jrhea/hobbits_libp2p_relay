@@ -9,3 +9,4 @@
 jni.h
 **/obj
 **/.idea
+core/Cargo.toml

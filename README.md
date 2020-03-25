@@ -106,6 +106,16 @@ Building is easy.  First, clone the repo:
 
 ```
 
+#### Build for Rust
+
+Next cd into the project's root dir and build:
+
+```sh
+
+> make rust
+
+```
+
 #### Build for C
 
 Next cd into the project's root dir and build:
@@ -159,6 +169,17 @@ Here is a screenshot of the sample app in action:
 
 ![demo](./resources/demo.jpeg)
 
+
+#### Run Sample App (Rust)
+
+The sample app demonstrates two clients using Disv5 to find each other and the use of GossipSub to send messages back and forth.
+
+If you have `tmux` installed, it is a little simpler to run:
+
+```sh
+
+> cd examples/rust && sh peerDemo.sh
+```
 
 #### Run Sample App (C)
 

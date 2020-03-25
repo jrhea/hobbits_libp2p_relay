@@ -14,7 +14,7 @@ use futures::Future;
 use clap::{App, Arg, AppSettings};
 use libp2p_wrapper::{NetworkConfig,Topic,Message,GOSSIP,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
 use tokio::sync::mpsc;
-use crate::mothra_api::network::{Network,NetworkMessage,OutgoingMessage};
+use network::{Network,NetworkMessage,OutgoingMessage};
 
 pub mod network;
 pub mod error;

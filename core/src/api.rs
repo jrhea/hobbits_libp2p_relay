@@ -58,7 +58,8 @@ static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
 static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
 static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
 
-pub unsafe fn libp2p_register_handlers(
+#[no_mangle]
+pub unsafe fn register_handlers(
         discovered_peer_ptr: fn(peer: String),
         receive_gossip_ptr: fn(topic: String, data: Vec<u8>),
         receive_rpc_ptr: fn(method: String, req_resp: u8, peer: String, data: Vec<u8>)
@@ -80,7 +81,9 @@ pub unsafe fn receive_rpc (method: String, req_resp: u8, peer: String, data: Vec
     s_receive_rpc_ptr.unwrap()(method, req_resp, peer, data);
 }
 
+#[no_mangle]
 pub unsafe fn network_start(args_vec: Vec<String>) {
+    println!("foo1");
     Builder::from_env(Env::default()).init();
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build().fuse();
@@ -130,19 +133,23 @@ pub unsafe fn network_start(args_vec: Vec<String>) {
 
 }
 
+#[no_mangle]
 pub fn send_gossip(topic: String, data: Vec<u8>) {
     let gossip_data = Message::new(GOSSIP.to_string(),topic,Default::default(),Default::default(),data);
     get_tx!().as_mut().unwrap().send(gossip_data);
 }
 
+#[no_mangle]
 pub fn send_rpc_request(method: String, peer: String, data: Vec<u8>) {
     send_rpc(method,0,peer,data);
 }
 
+#[no_mangle]
 pub fn send_rpc_response(method: String, peer: String, data: Vec<u8>) {
     send_rpc(method,1,peer,data);
 }
 
+#[no_mangle]
 fn send_rpc(method: String, req_resp: u8, peer: String, data: Vec<u8>){
     let rpc_data = Message::new(RPC.to_string(),method,req_resp,peer,data);
     get_tx!().as_mut().unwrap().send(rpc_data);

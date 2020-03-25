@@ -19,7 +19,10 @@ dotnet: clean-bin dotnet-examples
 java: clean-bin java-examples
 
 rust-examples: rust-bindings
-
+	@echo ""
+	@echo Building examples
+	cd $(EXAMPLES_DIR) && make $@
+	
 c-examples: c-bindings
 	@echo ""
 	@echo Building examples

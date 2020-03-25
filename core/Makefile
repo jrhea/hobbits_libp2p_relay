@@ -3,9 +3,8 @@ SHELL := /bin/sh
 include ../config.mk
 
 rust-bindings:
-	rm -f $(OUT_DIR)/target/release/*.*
-	cargo build --release --target-dir=$(OUT_DIR)
-	cp $(OUT_DIR)/release/libmothra.$(EXT) $(OUT_DIR)/
+	cargo build --release
+	ln -sf $(CORE_DIR)/target/release $(OUT_DIR)/release
 
 clean:
 	cargo clean

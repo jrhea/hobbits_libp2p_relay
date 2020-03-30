@@ -10,7 +10,7 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_Init(JNIEnv* jenv, jclass jcls)
 {
    jint rs = (*jenv)->GetJavaVM(jenv, &jvm);
    assert (rs == JNI_OK);
-   libp2p_register_handlers(discovered_peer_callback,receive_gossip_callback,receive_rpc_callback);
+   register_handlers(discovered_peer_callback,receive_gossip_callback,receive_rpc_callback);
 }
 
 JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobjectArray jargs){
@@ -28,7 +28,7 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobj
     else{
         return;
     }
-    libp2p_start(args, length);
+    network_start(args, length);
     for (int i=0; i<length; i++) {
         free(args[i]);
     }
@@ -49,7 +49,7 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendGossip(JNIEnv *jenv, jclass jcls,
         data = (*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
         if (!data) return ;
     }
-    libp2p_send_gossip(topic,topic_length,data,data_length);
+    send_gossip(topic,topic_length,data,data_length);
     if (topic) (*jenv)->ReleaseByteArrayElements(jenv, jtopic, topic, 0);
     if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
 }
@@ -75,9 +75,9 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendRPC(JNIEnv *jenv, jclass jcls, jb
         if (!method) return ;
     }
     if (jreq_resp == 0){
-        libp2p_send_rpc_request(method,method_length,peer,peer_length,data,data_length);
+        send_rpc_request(method,method_length,peer,peer_length,data,data_length);
     } else if (jreq_resp == 1){
-        libp2p_send_rpc_response(method,method_length,peer,peer_length,data,data_length);
+        send_rpc_response(method,method_length,peer,peer_length,data,data_length);
     }
     if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
     if (peer) (*jenv)->ReleaseByteArrayElements(jenv, jpeer, peer, 0);

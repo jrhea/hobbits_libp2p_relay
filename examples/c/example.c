@@ -30,12 +30,15 @@ void on_receive_rpc(const unsigned char* method_utf8, int method_length, int req
 }
 
 int main (int argc, char** argv) {
-    libp2p_register_handlers(
+    printf("one\n");
+    register_handlers(
         on_discovered_peer,
         on_receive_gossip,
         on_receive_rpc
     );
-    libp2p_start(argv,argc);
+     printf("two\n");
+    network_start(argv,argc);
+     printf("three\n");
     while(1){
 #ifdef _WIN64
         Sleep(sleep_seconds * 1000);
@@ -46,6 +49,6 @@ int main (int argc, char** argv) {
         int topic_length = (int)(strlen(topic));
         char* data = "Hello from C";
         int data_length = (int)(strlen(data));
-        libp2p_send_gossip((unsigned char*)topic, topic_length, (unsigned char*)data, data_length);
+        send_gossip((unsigned char*)topic, topic_length, (unsigned char*)data, data_length);
     }
 }

@@ -13,12 +13,12 @@
 extern "C" {
 #endif
 
-EXPORT void libp2p_start(char** args, int length);
-EXPORT void libp2p_send_gossip(unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
-EXPORT void libp2p_send_rpc_request(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
-EXPORT void libp2p_send_rpc_response(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
+EXPORT void network_start(char** args, int length);
+EXPORT void send_gossip(unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
+EXPORT void send_rpc_request(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
+EXPORT void send_rpc_response(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
 
-EXPORT void libp2p_register_handlers(
+EXPORT void register_handlers(
    void (*discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length), 
    void (*receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length), 
    void (*receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length)

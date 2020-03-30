@@ -22,19 +22,19 @@ namespace Bindings
         // mothra.dll on Windows, libmothra.so on Linux, libmotha.dylib on OSX
         private const string DllName = "libmothra";
         
-        [DllImport(DllName, EntryPoint = "libp2p_start", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllName, EntryPoint = "network_start", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void Start([In, Out] string[] args, int length);
 
-        [DllImport(DllName, EntryPoint = "libp2p_send_gossip", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllName, EntryPoint = "send_gossip", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void SendGossip(byte* topicUtf8, int topicLength, byte* data, int dataLength);
 
-        [DllImport(DllName, EntryPoint = "libp2p_send_rpc_request", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllName, EntryPoint = "send_rpc_request", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void SendRequest(byte* methodUtf8, int methodLength, byte* peerUtf8, int peerLength, byte* data, int dataLength);
 
-        [DllImport(DllName, EntryPoint = "libp2p_send_rpc_response", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllName, EntryPoint = "send_rpc_response", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void SendResponse(byte* methodUtf8, int methodLength, byte* peerUtf8, int peerLength, byte* data, int dataLength);
 
-        [DllImport(DllName, EntryPoint = "libp2p_register_handlers", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllName, EntryPoint = "register_handlers", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void RegisterHandlers(DiscoveredPeer discoveredPeer, ReceiveGossip receiveGossip, ReceiveRpc receiveRpc);
         //public static extern unsafe void RegisterHandlers(IntPtr discoveredPeer, IntPtr receiveGossip, IntPtr receiveRpc);
         

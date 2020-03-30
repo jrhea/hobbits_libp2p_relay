@@ -5,7 +5,7 @@ include ../config.mk
 rust-bindings:
 	rm -f Cargo.toml
 	ln -sf Cargo-rust.toml Cargo.toml
-	cargo build --release
+	cargo build --release --features "api"
 	ln -sf $(CORE_DIR)/target/release $(OUT_DIR)/release
 
 ffi-bindings:

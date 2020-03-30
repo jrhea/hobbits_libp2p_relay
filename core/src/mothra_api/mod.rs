@@ -242,7 +242,7 @@ pub mod api {
                 receive_gossip(topic, topic_length, data, data_length);
             }
         } else if network_message.category == RPC.to_string(){
-            //debug!(log, "received RPC from peer: {:?} method: {:?} req/resp: {:?}", network_message.peer,network_message.command,network_message.req_resp);
+            debug!(log, "received RPC from peer: {:?} method: {:?} req/resp: {:?}", network_message.peer,network_message.command,network_message.req_resp);
             let method_length = i16(network_message.command.len()).unwrap();
             let method =  network_message.command.as_ptr();
             let req_resp = i16(network_message.req_resp);
@@ -254,7 +254,7 @@ pub mod api {
                 receive_rpc(method, method_length, req_resp, peer, peer_length, data, data_length);
             }
         } else if network_message.category == DISCOVERY.to_string(){
-            //debug!(log, "discovered peer: {:?}", network_message.peer);
+            debug!(log, "discovered peer: {:?}", network_message.peer);
             let peer_length = i16(network_message.peer.len()).unwrap();
             let peer = network_message.peer.as_ptr();
             unsafe {

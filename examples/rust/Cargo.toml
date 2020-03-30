@@ -5,4 +5,4 @@ authors = ["Jonny Rhea <jonny.rhea@consensys.net>"]
 edition = "2018"
 
 [dependencies]
-mothra = { path = "../../core", package = "mothra"}
+mothra = { path = "../../core", package = "mothra", features = ["api"]}

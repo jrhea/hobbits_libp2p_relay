@@ -14,7 +14,7 @@ use cast::i8;
 use slog::{info, debug, warn, o, Drain};
 use env_logger::{Builder, Env};
 use libp2p_wrapper::{Message,GOSSIP,RPC,DISCOVERY};
-use crate::mothra_api::{config,start};
+use crate::mothra_api::{config,start,discovered_peer,receive_gossip,receive_rpc};
 
 #[derive(Debug)]
 pub struct Global {
@@ -51,34 +51,15 @@ macro_rules! get_tx {
     );
 }
 
-type discovered_peer_type = fn(peer: String);
-type receive_gossip_type = fn(topic: String, data: Vec<u8>);
-type receive_rpc_type =  fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
-static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
-static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
-static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
-
 #[no_mangle]
 pub unsafe fn register_handlers(
         discovered_peer_ptr: fn(peer: String),
         receive_gossip_ptr: fn(topic: String, data: Vec<u8>),
         receive_rpc_ptr: fn(method: String, req_resp: u8, peer: String, data: Vec<u8>)
     ) {
-        s_discovered_peer_ptr = Some(discovered_peer_ptr);
-        s_receive_gossip_ptr = Some(receive_gossip_ptr);
-        s_receive_rpc_ptr = Some(receive_rpc_ptr);
-}
-
-pub unsafe fn discovered_peer (peer: String){
-    s_discovered_peer_ptr.unwrap()(peer);
-}
-
-pub unsafe fn receive_gossip (topic: String, data: Vec<u8>) {
-    s_receive_gossip_ptr.unwrap()(topic, data);
-}
-
-pub unsafe fn receive_rpc (method: String, req_resp: u8, peer: String, data: Vec<u8>) {
-    s_receive_rpc_ptr.unwrap()(method, req_resp, peer, data);
+        crate::mothra_api::s_discovered_peer_ptr = Some(discovered_peer_ptr);
+        crate::mothra_api::s_receive_gossip_ptr = Some(receive_gossip_ptr);
+        crate::mothra_api::s_receive_rpc_ptr = Some(receive_rpc_ptr);
 }
 
 #[no_mangle]

@@ -25,6 +25,25 @@ pub const HEARTBEAT_INTERVAL_SECONDS: u64 = 10;
 /// Create a warning log whenever the peer count is at or below this value.
 pub const WARN_PEER_COUNT: usize = 1;
 
+type discovered_peer_type = fn(peer: String);
+type receive_gossip_type = fn(topic: String, data: Vec<u8>);
+type receive_rpc_type =  fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
+pub static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
+pub static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
+pub static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
+
+pub unsafe fn discovered_peer (peer: String){
+    s_discovered_peer_ptr.unwrap()(peer);
+}
+
+pub unsafe fn receive_gossip (topic: String, data: Vec<u8>) {
+    s_receive_gossip_ptr.unwrap()(topic, data);
+}
+
+pub unsafe fn receive_rpc (method: String, req_resp: u8, peer: String, data: Vec<u8>) {
+    s_receive_rpc_ptr.unwrap()(method, req_resp, peer, data);
+}
+
 pub fn start(args: ArgMatches, local_tx: &sync::Sender<Message>,local_rx: &sync::Receiver<Message>, log: slog::Logger) {
     info!(log,"Initializing libP2P....");
     let runtime = Builder::new()

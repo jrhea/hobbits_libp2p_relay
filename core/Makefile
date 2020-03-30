@@ -11,7 +11,7 @@ rust-bindings:
 ffi-bindings:
 	rm -f Cargo.toml
 	ln -sf Cargo-ffi.toml Cargo.toml
-	cargo build --release --target-dir=$(OUT_DIR)
+	cargo build --release --features "capi" --target-dir=$(OUT_DIR)
 	cp $(OUT_DIR)/release/libmothra.$(EXT) $(OUT_DIR)/
 
 clean:

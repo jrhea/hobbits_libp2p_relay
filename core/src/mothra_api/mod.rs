@@ -5,16 +5,26 @@ use std::time::{Duration, Instant};
 use std::env;
 use std::process;
 use std::{thread, time};
-use slog::{debug, info, o, warn};
+use slog::{debug, info, o, warn, Drain};
 use tokio::runtime::TaskExecutor;
 use tokio::runtime::Builder;
 use tokio::timer::Interval;
 use tokio_timer::clock::Clock;
 use futures::Future;
 use clap::{App, Arg, AppSettings};
-use libp2p_wrapper::{NetworkConfig,Topic,Message,GOSSIP,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
+use libp2p_wrapper::{NetworkConfig,Topic,Message,GOSSIP,DISCOVERY,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
 use tokio::sync::mpsc;
 use network::{Network,NetworkMessage,OutgoingMessage};
+
+use std::cell::RefCell;
+use std::cell::RefMut;
+use std::io::Cursor;
+use std::convert::TryFrom;
+use std::mem;
+use std::ops::Range;
+use cast::i16;
+use cast::i8;
+use env_logger::{Env};
 
 pub mod network;
 pub mod error;
@@ -25,29 +35,162 @@ pub const HEARTBEAT_INTERVAL_SECONDS: u64 = 10;
 /// Create a warning log whenever the peer count is at or below this value.
 pub const WARN_PEER_COUNT: usize = 1;
 
-type discovered_peer_type = fn(peer: String);
-type receive_gossip_type = fn(topic: String, data: Vec<u8>);
-type receive_rpc_type =  fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
-pub static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
-pub static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
-pub static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
-
-pub unsafe fn discovered_peer (peer: String){
-    s_discovered_peer_ptr.unwrap()(peer);
+#[derive(Debug)]
+pub struct Global {
+    tx: RefCell<Option<sync::Sender<Message>>>
 }
 
-pub unsafe fn receive_gossip (topic: String, data: Vec<u8>) {
-    s_receive_gossip_ptr.unwrap()(topic, data);
+pub static mut GLOBAL: Global = Global{ tx:  RefCell::new(None) };
+
+impl Global {
+    pub fn set(&mut self, value: &RefCell<Option<sync::Sender<Message>>>) {
+        self.tx.swap(value);
+    }
+
+    pub fn get(&self) -> RefMut<Option<sync::Sender<Message>>> {
+        self.tx.borrow_mut()
+    }
 }
 
-pub unsafe fn receive_rpc (method: String, req_resp: u8, peer: String, data: Vec<u8>) {
-    s_receive_rpc_ptr.unwrap()(method, req_resp, peer, data);
+#[macro_export]
+macro_rules! set_tx {
+    ($fmt:expr) => (
+        unsafe {
+            GLOBAL.set($fmt)
+        }
+    );
 }
 
-pub fn start(args: ArgMatches, local_tx: &sync::Sender<Message>,local_rx: &sync::Receiver<Message>, log: slog::Logger) {
+#[macro_export]
+macro_rules! get_tx {
+    () => (
+        unsafe {
+            GLOBAL.get()
+        }
+    );
+}
+
+#[cfg(not(capi))]
+pub mod api {
+    use super::*;
+    type discovered_peer_type = fn(peer: String);
+    type receive_gossip_type = fn(topic: String, data: Vec<u8>);
+    type receive_rpc_type =  fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
+    pub static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
+    pub static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
+    pub static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
+
+    #[no_mangle]
+    pub unsafe fn register_handlers(
+            discovered_peer_ptr: fn(peer: String),
+            receive_gossip_ptr: fn(topic: String, data: Vec<u8>),
+            receive_rpc_ptr: fn(method: String, req_resp: u8, peer: String, data: Vec<u8>)
+    ) {
+            crate::mothra_api::api::s_discovered_peer_ptr = Some(discovered_peer_ptr);
+            crate::mothra_api::api::s_receive_gossip_ptr = Some(receive_gossip_ptr);
+            crate::mothra_api::api::s_receive_rpc_ptr = Some(receive_rpc_ptr);
+    }
+
+    pub unsafe fn discovered_peer (peer: String){
+        s_discovered_peer_ptr.unwrap()(peer);
+    }
+    
+    pub unsafe fn receive_gossip (topic: String, data: Vec<u8>) {
+        s_receive_gossip_ptr.unwrap()(topic, data);
+    }
+    
+    pub unsafe fn receive_rpc (method: String, req_resp: u8, peer: String, data: Vec<u8>) {
+        s_receive_rpc_ptr.unwrap()(method, req_resp, peer, data);
+    }
+
+    #[no_mangle]
+    pub unsafe fn network_start(args_vec: Vec<String>) {
+        env_logger::Builder::from_env(Env::default()).init();
+        let decorator = slog_term::TermDecorator::new().build();
+        let drain = slog_term::CompactFormat::new(decorator).build().fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let slog = slog::Logger::root(drain, o!());
+        let log = slog.new(o!("API" => "init()"));
+        let args = config(args_vec);
+        let (mut tx1, rx1) = sync::channel();
+
+        thread::spawn(move || {
+            super::start(args, &rx1, log.new(o!("API" => "start()")));
+        });
+
+        set_tx!(&RefCell::new(Some(tx1)));
+    }
+
+    pub fn network_receive(network_message: Message, log: slog::Logger){
+        if network_message.category == GOSSIP.to_string(){
+            debug!(log, "received GOSSIP from peer: {:?} method: {:?} req/resp: {:?}", network_message.peer,network_message.command,network_message.req_resp);
+            let topic = network_message.command;
+            let data = network_message.value.to_vec();
+            unsafe{ api::receive_gossip(topic, data); }
+        } else if network_message.category == RPC.to_string(){
+            debug!(log, "received RPC from peer: {:?} method: {:?} req/resp: {:?}", network_message.peer,network_message.command,network_message.req_resp);
+            let method =  network_message.command;
+            let req_resp = network_message.req_resp;
+            let peer = network_message.peer;
+            let data = network_message.value.to_vec();
+            unsafe{ api::receive_rpc(method, req_resp, peer, data); }
+        } else if network_message.category == DISCOVERY.to_string(){
+            debug!(log, "discovered peer: {:?}", network_message.peer);
+            let peer = network_message.peer;
+            unsafe { api::discovered_peer(peer); }
+        }
+    }
+
+    #[no_mangle]
+    pub fn send_gossip(topic: String, data: Vec<u8>) {
+        let gossip_data = Message::new(GOSSIP.to_string(),topic,Default::default(),Default::default(),data);
+        get_tx!().as_mut().unwrap().send(gossip_data);
+    }
+
+    #[no_mangle]
+    pub fn send_rpc_request(method: String, peer: String, data: Vec<u8>) {
+        send_rpc(method,0,peer,data);
+    }
+
+    #[no_mangle]
+    pub fn send_rpc_response(method: String, peer: String, data: Vec<u8>) {
+        send_rpc(method,1,peer,data);
+    }
+
+    #[no_mangle]
+    fn send_rpc(method: String, req_resp: u8, peer: String, data: Vec<u8>){
+        let rpc_data = Message::new(RPC.to_string(),method,req_resp,peer,data);
+        get_tx!().as_mut().unwrap().send(rpc_data);
+    }
+}
+
+#[cfg(capi)]
+pub mod api {
+    use super::*;
+    type discovered_peer_type = unsafe extern "C" fn(peer_c_uchar: *const c_uchar, peer_length: i16);
+    type receive_gossip_type = unsafe extern "C" fn(topic_c_uchar: *const c_uchar, topic_length: i16, data_c_uchar: *mut c_uchar, data_length: i16);
+    type receive_rpc_type =  unsafe extern "C" fn(method_c_uchar: *const c_uchar, method_length: i16, req_resp: i16, peer_c_uchar: *const c_uchar, peer_length: i16, data_c_uchar: *mut c_uchar, data_length: i16);
+    static mut s_discovered_peer_ptr: Option<discovered_peer_type> = None;
+    static mut s_receive_gossip_ptr: Option<receive_gossip_type> = None;
+    static mut s_receive_rpc_ptr: Option<receive_rpc_type> = None;
+
+    pub unsafe extern "C" fn discovered_peer (peer_c_uchar: *const c_uchar, peer_length: i16) {
+        s_discovered_peer_ptr.unwrap()(peer_c_uchar, peer_length);
+    }
+
+    pub unsafe extern "C" fn receive_gossip (topic_c_uchar: *const c_uchar, topic_length: i16, data_c_uchar: *mut c_uchar, data_length: i16) {
+        s_receive_gossip_ptr.unwrap()(topic_c_uchar, topic_length, data_c_uchar, data_length);
+    }
+
+    pub unsafe extern "C" fn receive_rpc (method_c_uchar: *const c_uchar, method_length: i16, req_resp: i16, peer_c_uchar: *const c_uchar, peer_length: i16, data_c_uchar: *mut c_uchar, data_length: i16) {
+        s_receive_rpc_ptr.unwrap()(method_c_uchar, method_length, req_resp, peer_c_uchar, peer_length, data_c_uchar, data_length);
+    }
+}
+
+pub fn start(args: ArgMatches, local_rx: &sync::Receiver<Message>, log: slog::Logger) {
     info!(log,"Initializing libP2P....");
     let runtime = Builder::new()
-        .name_prefix("mod-")
+        .name_prefix("API-")
         .clock(Clock::system())
         .build()
         .map_err(|e| format!("{:?}", e)).unwrap();
@@ -87,12 +230,11 @@ pub fn start(args: ArgMatches, local_tx: &sync::Sender<Message>,local_rx: &sync:
             }
         }
         match network_rx.try_recv(){
-            Ok(network_message) => {
-                //debug!(log,  "in mod.rs: receiving message {:?} {:?}",network_message.category,network_message.command);
-                local_tx.send(network_message).unwrap();
+            Ok(mut network_message) => {
+                api::network_receive(network_message, log.new(o!("API" => "network_receive()")));
             }
             Err(_) => {
-                
+    
             }
         }
         thread::sleep(dur);

@@ -35,6 +35,10 @@ bytes = "0.4.12"
 env_logger = "0.6.0"
 tokio-stdin-stdout = "0.1"
 
+[features]
+default = []
+capi = []
+
 [lib]
 name = "mothra"
 crate-type = ["staticlib", "cdylib"]

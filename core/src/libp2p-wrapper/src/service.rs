@@ -27,29 +27,6 @@ type Libp2pStream = Boxed<(PeerId, StreamMuxerBox), Error>;
 type Libp2pBehaviour = Behaviour<Substream<StreamMuxerBox>>;
 
 const NETWORK_KEY_FILENAME: &str = "key";
-pub const GOSSIP: &str = "GOSSIP";
-pub const RPC: &str = "RPC";
-pub const DISCOVERY: &str = "DISCOVERY";
-
-pub struct Message {
-    pub category: String,
-    pub command: String,
-    pub req_resp: u8,
-    pub peer: String,
-    pub value: Vec<u8>,
-}
-
-impl Message {
-    pub fn new (category: String, command: String, req_resp: u8, peer: String, value: Vec<u8>) -> Message {
-        Message {
-            category: category,
-            command: command,
-            req_resp: req_resp,
-            peer: peer,
-            value: value
-        }
-    }
-}
 
 /// The configuration and state of the libp2p components for the beacon node.
 pub struct Service{
@@ -58,14 +35,13 @@ pub struct Service{
     pub swarm: Swarm<Libp2pStream, Libp2pBehaviour>,
     /// This node's PeerId.
     _local_peer_id: PeerId,
-    tx: std::sync::Mutex<sync::Sender<Message>>,
     /// The libp2p logger handle.
     pub log: slog::Logger,
 }
 
 impl Service {
 
-    pub fn new(config: NetworkConfig, tx: std::sync::Mutex<sync::Sender<Message>>, log: slog::Logger) -> error::Result<Self> {
+    pub fn new(config: NetworkConfig, log: slog::Logger) -> error::Result<Self> {
         // load the private key from CLI flag, disk or generate a new one
         let local_private_key = load_private_key(&config, &log);
 
@@ -136,7 +112,6 @@ impl Service {
         Ok(Service {
             _local_peer_id: local_peer_id,
             swarm,
-            tx,
             log,
         })
     }
@@ -157,13 +132,6 @@ impl Stream for Service {
                         message,
                     } => {
                         //debug!(self.log, "Gossipsub message received"; "Message" => format!("{:?}", topics[0]));
-                        self.tx.lock().unwrap().send(Message {
-                            category: GOSSIP.to_string(),
-                            command: topics[0].to_string(),
-                            req_resp: Default::default(),
-                            peer: Default::default(),
-                            value: message.clone()
-                        }).unwrap();
                         return Ok(Async::Ready(Some(Libp2pEvent::PubsubMessage {
                             source,
                             topics,

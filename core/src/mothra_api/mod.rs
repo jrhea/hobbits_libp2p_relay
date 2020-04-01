@@ -12,9 +12,9 @@ use tokio::timer::Interval;
 use tokio_timer::clock::Clock;
 use futures::Future;
 use clap::{App, Arg, AppSettings};
-use libp2p_wrapper::{NetworkConfig,Topic,Message,GOSSIP,DISCOVERY,RPC,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
+use libp2p_wrapper::{NetworkConfig,Topic,RPCRequest,RPCResponse,RPCErrorResponse,RPCEvent,PeerId};
 use tokio::sync::mpsc;
-use network::{Network,NetworkMessage,OutgoingMessage};
+use network::{Network,NetworkMessage,OutgoingMessage,Message,GOSSIP,DISCOVERY,RPC};
 
 use std::cell::RefCell;
 use std::cell::RefMut;

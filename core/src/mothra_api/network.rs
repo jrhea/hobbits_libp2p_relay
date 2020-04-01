@@ -1,7 +1,6 @@
 use super::error;
 use libp2p_wrapper::NetworkConfig;
 use libp2p_wrapper::Service as LibP2PService;
-use libp2p_wrapper::{Message,RPC,GOSSIP,DISCOVERY};
 use libp2p_wrapper::{Libp2pEvent, PeerId};
 use libp2p_wrapper::{RPCEvent,RPCRequest,RPCResponse,RPCErrorResponse};
 use libp2p_wrapper::Topic;
@@ -14,10 +13,34 @@ use std::sync::mpsc as sync;
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 
+pub const GOSSIP: &str = "GOSSIP";
+pub const RPC: &str = "RPC";
+pub const DISCOVERY: &str = "DISCOVERY";
+
 pub struct Network {
     libp2p_service: Arc<Mutex<LibP2PService>>,
     _libp2p_exit: oneshot::Sender<()>,
     _network_send: mpsc::UnboundedSender<NetworkMessage>,
+}
+
+pub struct Message {
+    pub category: String,
+    pub command: String,
+    pub req_resp: u8,
+    pub peer: String,
+    pub value: Vec<u8>,
+}
+
+impl Message {
+    pub fn new (category: String, command: String, req_resp: u8, peer: String, value: Vec<u8>) -> Message {
+        Message {
+            category: category,
+            command: command,
+            req_resp: req_resp,
+            peer: peer,
+            value: value
+        }
+    }
 }
 
 impl Network {
@@ -31,7 +54,7 @@ impl Network {
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
         // launch libp2p Network
         let libp2p_log = log.new(o!("Network" => "Libp2p"));
-        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config.clone(), std::sync::Mutex::new(tx.clone()), libp2p_log)?));
+        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config.clone(), libp2p_log)?));
         let libp2p_exit = spawn_service(
             libp2p_service.clone(),
             network_recv,
@@ -166,6 +189,19 @@ fn network_service(
                                 warn!(log,"RPCEvent Error");
                             }
                         }
+                    }
+                    Libp2pEvent::PubsubMessage { 
+                        source, 
+                        topics, 
+                        message
+                    } => {
+                        tx.lock().unwrap().send(Message {
+                            category: GOSSIP.to_string(),
+                            command: topics[0].to_string(),
+                            req_resp: Default::default(),
+                            peer: Default::default(),
+                            value: message.clone()
+                        }).unwrap();
                     }
                     Libp2pEvent::PeerDialed(_peer_id) => {
                         tx.lock().unwrap().send(Message {

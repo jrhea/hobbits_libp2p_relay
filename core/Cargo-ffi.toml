@@ -37,7 +37,7 @@ tokio-stdin-stdout = "0.1"
 
 [features]
 default = []
-capi = []
+ffi = []
 
 [lib]
 name = "mothra"

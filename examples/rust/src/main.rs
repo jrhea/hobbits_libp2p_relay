@@ -1,24 +1,41 @@
 use std::{thread, time};
-use mothra::{register_handlers,network_start,send_gossip};
+use tokio::runtime::Builder;
+use tokio::runtime::TaskExecutor;
+use tokio_timer::clock::Clock;
+use slog::{debug, info, o, warn, Drain};
+use env_logger::{Env};
+use mothra::network::Network;
+
 
 fn main() {
     let args = std::env::args().collect();
-    unsafe{
-        register_handlers(
+    let runtime = Builder::new()
+    .name_prefix("Example-")
+    .clock(Clock::system())
+    .build()
+    .map_err(|e| format!("{:?}", e)).unwrap();
+    let executor = runtime.executor();
+    env_logger::Builder::from_env(Env::default()).init();
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::CompactFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+    let slog = slog::Logger::root(drain, o!());
+    let network_logger = slog.new(o!("Network" => "Network"));
+    let mut network = Network::new(
+            args,
+            &executor,
             on_discovered_peer,
             on_receive_gossip,
-            on_receive_rpc
-        );
-    }
-    unsafe {
-        network_start(args);
-    }
+            on_receive_rpc,
+            network_logger,
+    ).unwrap();
+
     let dur = time::Duration::from_secs(5);
-    loop{
-        thread::sleep(dur);
+    loop {
         let topic = "/eth2/beacon_block/ssz".to_string();
         let data = "Hello from Rust".as_bytes().to_vec();
-        send_gossip(topic, data);
+        network.gossip(topic, data);
+        thread::sleep(dur);
     }
 }
 

@@ -1,3 +1,4 @@
-pub mod mothra_api;
-
-pub use mothra_api::api::*;
+pub mod api;
+pub use api::{error,network};
+#[cfg(feature = "ffi")]
+pub use api::ffi;

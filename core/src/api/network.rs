@@ -45,7 +45,7 @@ impl Network {
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
         // launch libp2p Network
         let libp2p_log = log.new(o!("Network" => "Libp2p"));
-        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config.clone(), libp2p_log)?));
+        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config, libp2p_log)?));
         let libp2p_exit = spawn_service(
             libp2p_service.clone(),
             network_recv,
@@ -59,7 +59,7 @@ impl Network {
         let network_service = Network {
             libp2p_service,
             _libp2p_exit: libp2p_exit,
-            network_send: network_send.clone(),
+            network_send,
             log: log.clone(),
         };
 

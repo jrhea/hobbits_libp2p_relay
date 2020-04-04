@@ -51,7 +51,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         net_conf: &NetworkConfig,
         log: &slog::Logger,
     ) -> error::Result<Self> {
-        let local_peer_id = local_key.public().clone().into_peer_id();
+        let local_peer_id = local_key.public().into_peer_id();
         let behaviour_log = log.new(o!());
         let ping_config = PingConfig::new()
             .with_timeout(Duration::from_secs(30))
@@ -68,7 +68,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
 
         Ok(Behaviour {
             serenity_rpc: RPC::new(log),
-            gossipsub: Gossipsub::new(local_peer_id.clone(), net_conf.gs_config.clone()),
+            gossipsub: Gossipsub::new(local_peer_id, net_conf.gs_config.clone()),
             discovery: Discovery::new(local_key, net_conf, log)?,
             ping: Ping::new(ping_config),
             identify,

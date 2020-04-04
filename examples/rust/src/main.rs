@@ -1,6 +1,5 @@
 use std::{thread, time};
 use tokio::runtime::Builder;
-use tokio::runtime::TaskExecutor;
 use tokio_timer::clock::Clock;
 use slog::{debug, info, o, warn, Drain};
 use env_logger::{Env};

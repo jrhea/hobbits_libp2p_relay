@@ -1,4 +1,4 @@
-use crate::behaviour::{Behaviour, BehaviourEvent, PubsubMessage};
+use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::error;
 use crate::multiaddr::Protocol;
 use crate::rpc::{RPCEvent};
@@ -92,7 +92,7 @@ impl Service {
                 .topics
                 .iter()
                 .cloned()
-                .map(|s| Topic::new(s))
+                .map(Topic::new)
                 .collect(),
         );
 

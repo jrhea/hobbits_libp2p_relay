@@ -88,7 +88,7 @@ pub unsafe extern "C" fn register_handlers(
 }
 
 #[no_mangle]
-pub extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
+pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
     env_logger::Builder::from_env(Env::default()).init();
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build().fuse();
@@ -97,7 +97,7 @@ pub extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
     let log = slog.new(o!("Network" => "Network"));
     let mut args_vec = Vec::<String>::new();
     for idx in 0..length {
-        let args_cstr = unsafe { CStr::from_ptr(*args_c_char.offset(idx)) };
+        let args_cstr = CStr::from_ptr(*args_c_char.offset(idx));
         match args_cstr.to_str() {
             Ok(s) => {
                 args_vec.push(s.to_string());
@@ -117,32 +117,28 @@ pub extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
         log.clone(),
     )
     .unwrap();
-    unsafe {
-        CONTEXT.push(Context {
-            runtime: runtime,
-            network_service: network_service,
-        })
-    };
+    CONTEXT.push(Context {
+        runtime,
+        network_service,
+    });
 }
 
 #[no_mangle]
-pub extern "C" fn send_gossip(
+pub unsafe extern "C" fn send_gossip(
     topic_c_uchar: *mut c_uchar,
     topic_length: usize,
     data_c_uchar: *mut c_uchar,
     data_length: usize,
 ) {
-    unsafe {
-        let topic =
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(topic_c_uchar, topic_length))
-                .to_string();
-        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        CONTEXT[0].network_service.gossip(topic, data);
-    }
+    let topic =
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(topic_c_uchar, topic_length))
+            .to_string();
+    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+    CONTEXT[0].network_service.gossip(topic, data);
 }
 
 #[no_mangle]
-pub extern "C" fn send_rpc_request(
+pub unsafe extern "C" fn send_rpc_request(
     method_c_uchar: *mut c_uchar,
     method_length: usize,
     peer_c_uchar: *mut c_uchar,
@@ -150,22 +146,20 @@ pub extern "C" fn send_rpc_request(
     data_c_uchar: *mut c_uchar,
     data_length: usize,
 ) {
-    unsafe {
-        let method = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-            method_c_uchar,
-            method_length,
-        ))
-        .to_string();
-        let peer =
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
-                .to_string();
-        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        CONTEXT[0].network_service.rpc_request(method, peer, data);
-    }
+    let method = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+        method_c_uchar,
+        method_length,
+    ))
+    .to_string();
+    let peer =
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
+            .to_string();
+    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+    CONTEXT[0].network_service.rpc_request(method, peer, data);
 }
 
 #[no_mangle]
-pub extern "C" fn send_rpc_response(
+pub unsafe extern "C" fn send_rpc_response(
     method_c_uchar: *mut c_uchar,
     method_length: usize,
     peer_c_uchar: *mut c_uchar,
@@ -173,16 +167,14 @@ pub extern "C" fn send_rpc_response(
     data_c_uchar: *mut c_uchar,
     data_length: usize,
 ) {
-    unsafe {
-        let method = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-            method_c_uchar,
-            method_length,
-        ))
-        .to_string();
-        let peer =
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
-                .to_string();
-        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        CONTEXT[0].network_service.rpc_response(method, peer, data);
-    }
+    let method = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+        method_c_uchar,
+        method_length,
+    ))
+    .to_string();
+    let peer =
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
+            .to_string();
+    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+    CONTEXT[0].network_service.rpc_response(method, peer, data);
 }

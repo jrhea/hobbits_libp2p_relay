@@ -50,7 +50,7 @@ impl Encoder for SerenityInboundCodec {
             // length-prefix and return
             return self
                 .inner
-                .encode(Bytes::from(bytes), dst)
+                .encode(bytes, dst)
                 .map_err(RPCError::from);
         }
         Ok(())
@@ -110,7 +110,7 @@ impl Encoder for SerenityOutboundCodec {
         };
         // length-prefix
         self.inner
-            .encode(bytes::Bytes::from(bytes), dst)
+            .encode(bytes, dst)
             .map_err(RPCError::from)
     }
 }

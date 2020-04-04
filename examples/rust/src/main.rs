@@ -54,6 +54,7 @@ fn on_receive_gossip (topic: String, data: Vec<u8>){
 fn on_receive_rpc (method: String, req_resp: u8, peer: String, data: Vec<u8>) { 
     println!("Rust: received rpc");
     println!("method={:?}", method);
+    println!("req_resp={:?}", req_resp);
     println!("peer={:?}", peer);
     println!("data={:?}", data);
 }

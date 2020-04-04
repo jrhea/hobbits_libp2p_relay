@@ -1,50 +1,26 @@
-use crate::network::{Network, NetworkMessage, OutgoingMessage, DISCOVERY, GOSSIP, RPC};
-use clap::ArgMatches;
-use clap::{App, AppSettings, Arg};
-use futures::prelude::*;
-use futures::Future;
-use libp2p_wrapper::{
-    NetworkConfig, PeerId, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Topic,
-};
+use crate::network::Network;
 use slog::{debug, info, o, warn, Drain};
-use std::env;
-use std::process;
-use std::sync::mpsc as sync;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use std::{thread, time};
-use tokio::runtime::{Builder as RuntimeBuilder, Runtime, TaskExecutor};
-use tokio::sync::mpsc;
-use tokio::timer::Interval;
-use tokio_timer::clock::Clock;
-
+use tokio::runtime::Runtime;
 use cast::i16;
-use cast::i8;
 use env_logger::Env;
-use std::cell::RefCell;
-use std::cell::RefMut;
-use std::convert::TryFrom;
-use std::ffi::{CStr, CString};
-use std::io::Cursor;
-use std::mem;
-use std::ops::Range;
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::ffi::CStr;
+use std::os::raw::{c_char, c_uchar};
 
 struct Context {
     runtime: Runtime,
     network_service: Network,
 }
 
-static mut context: Vec<Context> = Vec::new();
+static mut CONTEXT: Vec<Context> = Vec::new();
 
-type discovered_peer_type = unsafe extern "C" fn(peer_c_uchar: *const c_uchar, peer_length: i16);
-type receive_gossip_type = unsafe extern "C" fn(
+type DiscoveredPeerType = unsafe extern "C" fn(peer_c_uchar: *const c_uchar, peer_length: i16);
+type ReceiveGossipType = unsafe extern "C" fn(
     topic_c_uchar: *const c_uchar,
     topic_length: i16,
     data_c_uchar: *mut c_uchar,
     data_length: i16,
 );
-type receive_rpc_type = unsafe extern "C" fn(
+type ReceiveRpcType = unsafe extern "C" fn(
     method_c_uchar: *const c_uchar,
     method_length: i16,
     req_resp: i16,
@@ -53,20 +29,20 @@ type receive_rpc_type = unsafe extern "C" fn(
     data_c_uchar: *mut c_uchar,
     data_length: i16,
 );
-static mut discovered_peer_ptr: Option<discovered_peer_type> = None;
-static mut receive_gossip_ptr: Option<receive_gossip_type> = None;
-static mut receive_rpc_ptr: Option<receive_rpc_type> = None;
+static mut DISCOVERED_PEER_PTR: Option<DiscoveredPeerType> = None;
+static mut RECEIVE_GOSSIP_PTR: Option<ReceiveGossipType> = None;
+static mut RECEIVE_RPC_PTR: Option<ReceiveRpcType> = None;
 
 pub fn discovered_peer(peer: String) {
     let peer_length = i16(peer.len()).unwrap();
-    unsafe { discovered_peer_ptr.unwrap()(peer.as_ptr(), peer_length) };
+    unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
 }
 
 pub fn receive_gossip(topic: String, mut data: Vec<u8>) {
     let topic_length = i16(topic.len()).unwrap();
     let data_length = i16(data.len()).unwrap();
     unsafe {
-        receive_gossip_ptr.unwrap()(topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
+        RECEIVE_GOSSIP_PTR.unwrap()(topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
     };
 }
 
@@ -75,7 +51,7 @@ pub fn receive_rpc(method: String, req_resp: u8, peer: String, mut data: Vec<u8>
     let peer_length = i16(peer.len()).unwrap();
     let data_length = i16(data.len()).unwrap();
     unsafe {
-        receive_rpc_ptr.unwrap()(
+        RECEIVE_RPC_PTR.unwrap()(
             method.as_ptr(),
             method_length,
             i16(req_resp),
@@ -106,9 +82,9 @@ pub unsafe extern "C" fn register_handlers(
         data_length: i16,
     ),
 ) {
-    discovered_peer_ptr = Some(discovered_peer);
-    receive_gossip_ptr = Some(receive_gossip);
-    receive_rpc_ptr = Some(receive_rpc);
+    DISCOVERED_PEER_PTR = Some(discovered_peer);
+    RECEIVE_GOSSIP_PTR = Some(receive_gossip);
+    RECEIVE_RPC_PTR = Some(receive_rpc);
 }
 
 #[no_mangle]
@@ -142,7 +118,7 @@ pub extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
     )
     .unwrap();
     unsafe {
-        context.push(Context {
+        CONTEXT.push(Context {
             runtime: runtime,
             network_service: network_service,
         })
@@ -160,8 +136,8 @@ pub extern "C" fn send_gossip(
         let topic =
             std::str::from_utf8_unchecked(std::slice::from_raw_parts(topic_c_uchar, topic_length))
                 .to_string();
-        let mut data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        context[0].network_service.gossip(topic, data);
+        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+        CONTEXT[0].network_service.gossip(topic, data);
     }
 }
 
@@ -183,8 +159,8 @@ pub extern "C" fn send_rpc_request(
         let peer =
             std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
                 .to_string();
-        let mut data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        context[0].network_service.rpc_request(method, peer, data);
+        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+        CONTEXT[0].network_service.rpc_request(method, peer, data);
     }
 }
 
@@ -206,7 +182,7 @@ pub extern "C" fn send_rpc_response(
         let peer =
             std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
                 .to_string();
-        let mut data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-        context[0].network_service.rpc_response(method, peer, data);
+        let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
+        CONTEXT[0].network_service.rpc_response(method, peer, data);
     }
 }

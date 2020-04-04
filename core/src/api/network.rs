@@ -9,10 +9,8 @@ use libp2p_wrapper::{Libp2pEvent, PeerId};
 use libp2p_wrapper::{NetworkConfig, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
 use parking_lot::Mutex;
 use slog::{debug, info, o, warn};
-use std::sync::mpsc as sync;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use std::{process, thread, time};
+use std::process;
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 
@@ -20,9 +18,9 @@ pub const GOSSIP: &str = "GOSSIP";
 pub const RPC: &str = "RPC";
 pub const DISCOVERY: &str = "DISCOVERY";
 
-type discovered_peer_type = fn(peer: String);
-type receive_gossip_type = fn(topic: String, data: Vec<u8>);
-type receive_rpc_type = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
+type DiscoveredPeerType = fn(peer: String);
+type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
+type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 pub struct Network {
     libp2p_service: Arc<Mutex<LibP2PService>>,
@@ -35,16 +33,16 @@ impl Network {
     pub fn new(
         args_vec: Vec<String>,
         executor: &TaskExecutor,
-        discovered_peer: discovered_peer_type,
-        receive_gossip: receive_gossip_type,
-        receive_rpc: receive_rpc_type,
+        discovered_peer: DiscoveredPeerType,
+        receive_gossip: ReceiveGossipType,
+        receive_rpc: ReceiveRpcType,
         log: slog::Logger,
-    ) -> error::Result<(Self)> {
+    ) -> error::Result<Self> {
         let args = config(args_vec);
         let mut config = NetworkConfig::new();
         config.apply_cli_args(&args).unwrap();
         // build the network channel
-        let (mut network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
+        let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
         // launch libp2p Network
         let libp2p_log = log.new(o!("Network" => "Libp2p"));
         let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config.clone(), libp2p_log)?));
@@ -123,9 +121,9 @@ fn spawn_service(
     libp2p_service: Arc<Mutex<LibP2PService>>,
     network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
     executor: &TaskExecutor,
-    discovered_peer: discovered_peer_type,
-    receive_gossip: receive_gossip_type,
-    receive_rpc: receive_rpc_type,
+    discovered_peer: DiscoveredPeerType,
+    receive_gossip: ReceiveGossipType,
+    receive_rpc: ReceiveRpcType,
     log: slog::Logger,
 ) -> error::Result<tokio::sync::oneshot::Sender<()>> {
     let (network_exit, exit_rx) = tokio::sync::oneshot::channel();
@@ -152,9 +150,9 @@ fn spawn_service(
 fn network_service(
     libp2p_service: Arc<Mutex<LibP2PService>>,
     mut network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
-    discovered_peer: discovered_peer_type,
-    receive_gossip: receive_gossip_type,
-    receive_rpc: receive_rpc_type,
+    discovered_peer: DiscoveredPeerType,
+    receive_gossip: ReceiveGossipType,
+    receive_rpc: ReceiveRpcType,
     log: slog::Logger,
 ) -> impl futures::Future<Item = (), Error = libp2p_wrapper::error::Error> {
     futures::future::poll_fn(move || -> Result<_, libp2p_wrapper::error::Error> {
@@ -186,7 +184,7 @@ fn network_service(
             // poll the swarm
             match libp2p_service.lock().poll() {
                 Ok(Async::Ready(Some(event))) => match event {
-                    Libp2pEvent::RPC(_peer_id, rpc_event) => {
+                    Libp2pEvent::RPC(peer_id, rpc_event) => {
                         debug!(log, "RPC Event: {:?}", rpc_event);
                         match rpc_event {
                             RPCEvent::Request(_, request) => match request {
@@ -195,20 +193,20 @@ fn network_service(
                                     receive_rpc(
                                         "".to_string(),
                                         0,
-                                        _peer_id.to_string(),
+                                        peer_id.to_string(),
                                         data.to_vec(),
                                     );
                                 }
                             },
                             RPCEvent::Response(id, err_response) => match err_response {
                                 RPCErrorResponse::InvalidRequest(error) => {
-                                    warn!(log, "Peer indicated invalid request";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
+                                    warn!(log, "Peer indicated invalid request";"peer_id" => format!("{:?}", peer_id), "error" => error.as_string())
                                 }
                                 RPCErrorResponse::ServerError(error) => {
-                                    warn!(log, "Peer internal server error";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
+                                    warn!(log, "Peer internal server error";"peer_id" => format!("{:?}", peer_id), "error" => error.as_string())
                                 }
                                 RPCErrorResponse::Unknown(error) => {
-                                    warn!(log, "Unknown peer error";"peer" => format!("{:?}", _peer_id), "error" => error.as_string())
+                                    warn!(log, "Unknown peer error";"peer" => format!("{:?}", peer_id), "error" => error.as_string())
                                 }
                                 RPCErrorResponse::Success(response) => match response {
                                     RPCResponse::Message(data) => {
@@ -216,7 +214,7 @@ fn network_service(
                                         receive_rpc(
                                             "".to_string(),
                                             1,
-                                            _peer_id.to_string(),
+                                            peer_id.to_string(),
                                             data.to_vec(),
                                         );
                                     }

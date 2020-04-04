@@ -1,4 +1,3 @@
-use crate::config::*;
 use crate::behaviour::{Behaviour, BehaviourEvent, PubsubMessage};
 use crate::error;
 use crate::multiaddr::Protocol;
@@ -13,9 +12,7 @@ use libp2p::core::{
     muxing::StreamMuxerBox,
     nodes::Substream,
     transport::boxed::Boxed,
-    upgrade::{InboundUpgradeExt, OutboundUpgradeExt},
 };
-use std::sync::mpsc as sync;
 use libp2p::{core, secio, PeerId, Swarm, Transport};
 use slog::{debug, info, warn};
 use std::fs::File;

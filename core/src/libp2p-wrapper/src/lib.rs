@@ -1,7 +1,3 @@
-/// This crate contains the main link for artemis to rust-libp2p. It therefore re-exports
-/// all required libp2p functionality.
-///
-/// This crate builds and manages the libp2p services required by the beacon node.
 pub mod behaviour;
 mod config;
 mod discovery;

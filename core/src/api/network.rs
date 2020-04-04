@@ -1,20 +1,20 @@
 use super::error;
-use libp2p_wrapper::Service as LibP2PService;
-use libp2p_wrapper::{Libp2pEvent, PeerId};
-use libp2p_wrapper::{RPCEvent,RPCRequest,RPCResponse,RPCErrorResponse,NetworkConfig};
-use libp2p_wrapper::Topic;
+use clap::ArgMatches;
+use clap::{App, AppSettings, Arg};
 use futures::prelude::*;
 use futures::Stream;
-use slog::{warn,debug, info, o};
+use libp2p_wrapper::Service as LibP2PService;
+use libp2p_wrapper::Topic;
+use libp2p_wrapper::{Libp2pEvent, PeerId};
+use libp2p_wrapper::{NetworkConfig, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
 use parking_lot::Mutex;
-use std::sync::Arc;
+use slog::{debug, info, o, warn};
 use std::sync::mpsc as sync;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{thread, time, process};
+use std::{process, thread, time};
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
-use clap::ArgMatches;
-use clap::{App, Arg, AppSettings};
 
 pub const GOSSIP: &str = "GOSSIP";
 pub const RPC: &str = "RPC";
@@ -22,13 +22,13 @@ pub const DISCOVERY: &str = "DISCOVERY";
 
 type discovered_peer_type = fn(peer: String);
 type receive_gossip_type = fn(topic: String, data: Vec<u8>);
-type receive_rpc_type =  fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
+type receive_rpc_type = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 pub struct Network {
     libp2p_service: Arc<Mutex<LibP2PService>>,
     _libp2p_exit: oneshot::Sender<()>,
     network_send: mpsc::UnboundedSender<NetworkMessage>,
-    log: slog::Logger
+    log: slog::Logger,
 }
 
 impl Network {
@@ -57,59 +57,65 @@ impl Network {
             receive_rpc,
             log.clone(),
         )?;
-        
+
         let network_service = Network {
             libp2p_service,
             _libp2p_exit: libp2p_exit,
             network_send: network_send.clone(),
-            log: log.clone()
+            log: log.clone(),
         };
 
         Ok(network_service)
     }
 
-    pub fn gossip(&mut self, topic: String, data: Vec<u8>){
-        self.network_send.try_send(NetworkMessage::Publish {
-                    topics: vec![Topic::new(topic)],
-                    message: data,})
-                    .unwrap_or_else(|_| {
-                        warn!(
-                            self.log,
-                            "Could not send gossip message."
-                        )
-                    });
+    pub fn gossip(&mut self, topic: String, data: Vec<u8>) {
+        self.network_send
+            .try_send(NetworkMessage::Publish {
+                topics: vec![Topic::new(topic)],
+                message: data,
+            })
+            .unwrap_or_else(|_| warn!(self.log, "Could not send gossip message."));
     }
-    
-    pub fn rpc_request(&mut self, method: String, peer: String, data: Vec<u8>){
+
+    pub fn rpc_request(&mut self, method: String, peer: String, data: Vec<u8>) {
         // use 0 as the default request id, when an ID is not required.
         let request_id: usize = 0;
-        let rpc_request: RPCRequest =  RPCRequest::Message(data);
+        let rpc_request: RPCRequest = RPCRequest::Message(data);
         let rpc_event: RPCEvent = RPCEvent::Request(request_id, rpc_request);
         let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
-        let peer_id = PeerId::from_bytes(bytes).map_err(|_|()).unwrap();
-        self.network_send.try_send(NetworkMessage::Send(peer_id,OutgoingMessage::RPC(rpc_event)))
-                    .unwrap_or_else(|_| {
-                        warn!(
-                            self.log,
-                            "Could not send RPC message to the network service"
-                        )
-                    });
+        let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
+        self.network_send
+            .try_send(NetworkMessage::Send(
+                peer_id,
+                OutgoingMessage::RPC(rpc_event),
+            ))
+            .unwrap_or_else(|_| {
+                warn!(
+                    self.log,
+                    "Could not send RPC message to the network service"
+                )
+            });
     }
-    
-    pub fn rpc_response(&mut self, method: String, peer: String, data: Vec<u8>){
+
+    pub fn rpc_response(&mut self, method: String, peer: String, data: Vec<u8>) {
         // use 0 as the default request id, when an ID is not required.
         let request_id: usize = 0;
-        let rpc_response: RPCResponse =  RPCResponse::Message(data);
-        let rpc_event: RPCEvent = RPCEvent::Response(request_id,RPCErrorResponse::Success(rpc_response));
+        let rpc_response: RPCResponse = RPCResponse::Message(data);
+        let rpc_event: RPCEvent =
+            RPCEvent::Response(request_id, RPCErrorResponse::Success(rpc_response));
         let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
-        let peer_id = PeerId::from_bytes(bytes).map_err(|_|()).unwrap();
-        self.network_send.try_send(NetworkMessage::Send(peer_id,OutgoingMessage::RPC(rpc_event)))
-                    .unwrap_or_else(|_| {
-                        warn!(
-                            self.log,
-                            "Could not send RPC message to the network service"
-                        )
-                    });
+        let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
+        self.network_send
+            .try_send(NetworkMessage::Send(
+                peer_id,
+                OutgoingMessage::RPC(rpc_event),
+            ))
+            .unwrap_or_else(|_| {
+                warn!(
+                    self.log,
+                    "Could not send RPC message to the network service"
+                )
+            });
     }
 }
 
@@ -182,45 +188,49 @@ fn network_service(
                 Ok(Async::Ready(Some(event))) => match event {
                     Libp2pEvent::RPC(_peer_id, rpc_event) => {
                         debug!(log, "RPC Event: {:?}", rpc_event);
-                         match rpc_event {
-                            RPCEvent::Request(_, request) => {
-                                match request {
-                                    RPCRequest::Message(data) => {
-                                        debug!(log, "RPCRequest message received: {:?}", data);
-                                        receive_rpc("".to_string(), 0, _peer_id.to_string(), data.to_vec());
-                                    }
+                        match rpc_event {
+                            RPCEvent::Request(_, request) => match request {
+                                RPCRequest::Message(data) => {
+                                    debug!(log, "RPCRequest message received: {:?}", data);
+                                    receive_rpc(
+                                        "".to_string(),
+                                        0,
+                                        _peer_id.to_string(),
+                                        data.to_vec(),
+                                    );
                                 }
                             },
-                            RPCEvent::Response(id,err_response) => {
-                                match err_response {
-                                    RPCErrorResponse::InvalidRequest(error) => {
-                                        warn!(log, "Peer indicated invalid request";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
-                                    }
-                                    RPCErrorResponse::ServerError(error) => {
-                                        warn!(log, "Peer internal server error";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
-                                    }
-                                    RPCErrorResponse::Unknown(error) => {
-                                        warn!(log, "Unknown peer error";"peer" => format!("{:?}", _peer_id), "error" => error.as_string())
-                                    }
-                                    RPCErrorResponse::Success(response) => {
-                                        match response {
-                                            RPCResponse::Message(data) => {
-                                                debug!(log, "RPCResponse message received: {:?}", data);
-                                                receive_rpc("".to_string(), 1, _peer_id.to_string(), data.to_vec());
-                                            }
-                                        }
-                                    }
+                            RPCEvent::Response(id, err_response) => match err_response {
+                                RPCErrorResponse::InvalidRequest(error) => {
+                                    warn!(log, "Peer indicated invalid request";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
                                 }
+                                RPCErrorResponse::ServerError(error) => {
+                                    warn!(log, "Peer internal server error";"peer_id" => format!("{:?}", _peer_id), "error" => error.as_string())
+                                }
+                                RPCErrorResponse::Unknown(error) => {
+                                    warn!(log, "Unknown peer error";"peer" => format!("{:?}", _peer_id), "error" => error.as_string())
+                                }
+                                RPCErrorResponse::Success(response) => match response {
+                                    RPCResponse::Message(data) => {
+                                        debug!(log, "RPCResponse message received: {:?}", data);
+                                        receive_rpc(
+                                            "".to_string(),
+                                            1,
+                                            _peer_id.to_string(),
+                                            data.to_vec(),
+                                        );
+                                    }
+                                },
                             },
-                            RPCEvent::Error(_,_) =>{
-                                warn!(log,"RPCEvent Error");
+                            RPCEvent::Error(_, _) => {
+                                warn!(log, "RPCEvent Error");
                             }
                         }
                     }
-                    Libp2pEvent::PubsubMessage { 
-                        source, 
-                        topics, 
-                        message
+                    Libp2pEvent::PubsubMessage {
+                        source,
+                        topics,
+                        message,
                     } => {
                         debug!(log, "Gossip message received: {:?}", message);
                         receive_gossip(topics[0].to_string(), message.clone());
@@ -243,7 +253,6 @@ fn network_service(
 }
 
 fn config(args: Vec<String>) -> ArgMatches<'static> {
-    
     App::new("Mothra")
     .version("0.0.1")
     .author("Your Mom")

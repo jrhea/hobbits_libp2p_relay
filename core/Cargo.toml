@@ -40,5 +40,6 @@ ffi = []
 
 [lib]
 name = "mothra"
-crate-type = ["staticlib", "cdylib"]
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib","rlib"]
 

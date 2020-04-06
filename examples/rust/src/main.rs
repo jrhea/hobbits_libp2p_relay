@@ -1,6 +1,5 @@
 use std::{thread, time};
-use tokio::runtime::Builder;
-use tokio_timer::clock::Clock;
+use tokio::runtime::Runtime;
 use slog::{debug, info, o, warn, Drain};
 use env_logger::{Env};
 use mothra::network::Network;
@@ -8,11 +7,9 @@ use mothra::network::Network;
 
 fn main() {
     let args = std::env::args().collect();
-    let runtime = Builder::new()
-    .name_prefix("Example-")
-    .clock(Clock::system())
-    .build()
-    .map_err(|e| format!("{:?}", e)).unwrap();
+    let runtime = Runtime::new()
+        .map_err(|e| format!("Failed to start runtime: {:?}", e))
+        .unwrap();
     let executor = runtime.executor();
     env_logger::Builder::from_env(Env::default()).init();
     let decorator = slog_term::TermDecorator::new().build();

@@ -2,40 +2,40 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:=c-mash dotnet-mash java-mash c dotnet java c-bindings dotnet-bindings java-bindings c-examples dotnet-examples java-examples clean-bin clean
+.PHONY:= all mash rust c dotnet java rust-bindings ffi-bindings c-bindings dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples clean
 
-c-mash: clean c
+.DEFAULT:= all
 
-dotnet-mash: clean dotnet
+all: rust c dotnet java
 
-java-mash: clean java
+mash: clean rust c dotnet java
 
-c: clean-bin c-examples
+rust: rust-examples
 
-rust: clean-bin rust-examples
+c: c-examples
 
-dotnet: clean-bin dotnet-examples
+dotnet: dotnet-examples
 
-java: clean-bin java-examples
+java: java-examples
 
 rust-examples:
 	@echo ""
-	@echo Building examples
+	@echo Building Rust examples
 	cd $(EXAMPLES_DIR) && make $@
 
 c-examples: c-bindings
 	@echo ""
-	@echo Building examples
+	@echo Building C examples
 	cd $(EXAMPLES_DIR) && make $@
 
 dotnet-examples: dotnet-bindings
 	@echo ""
-	@echo Building examples
+	@echo Building .Net examples
 	cd $(EXAMPLES_DIR) && make $@
 
 java-examples: java-bindings
 	@echo ""
-	@echo Building examples
+	@echo Building Java examples
 	cd $(EXAMPLES_DIR) && make $@
 
 rust-bindings:
@@ -63,10 +63,6 @@ java-bindings: ffi-bindings
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@
 
-clean-bin:
-	rm -f $(OUT_DIR)/*.*
-	rm -rf $(OUT_DIR)/net
-	
 clean:
 	rm -rf $(OUT_DIR)/*
 	cd $(CORE_DIR) && make $@

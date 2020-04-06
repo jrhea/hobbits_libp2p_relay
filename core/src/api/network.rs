@@ -2,9 +2,8 @@ use super::error;
 use futures::prelude::*;
 use futures::Stream;
 use libp2p_wrapper::Service as LibP2PService;
-use libp2p_wrapper::Topic;
 use libp2p_wrapper::{Libp2pEvent, PeerId};
-use libp2p_wrapper::{NetworkConfig, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
+use libp2p_wrapper::{NetworkConfig, GossipTopic, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
 use parking_lot::Mutex;
 use slog::{debug, info, o, warn};
 use std::sync::Arc;
@@ -42,7 +41,7 @@ impl Network {
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
         // launch libp2p Network
         let libp2p_log = log.new(o!("Network" => "Libp2p"));
-        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(config, libp2p_log)?));
+        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(&config, [0u8; 32].to_vec(), libp2p_log)?));
         let libp2p_exit = spawn_service(
             libp2p_service.clone(),
             network_recv,
@@ -66,7 +65,7 @@ impl Network {
     pub fn gossip(&mut self, topic: String, data: Vec<u8>) {
         self.network_send
             .try_send(NetworkMessage::Publish {
-                topics: vec![Topic::new(topic)],
+                topics: vec![GossipTopic::new(topic)],
                 message: data,
             })
             .unwrap_or_else(|_| warn!(self.log, "Could not send gossip message."));
@@ -223,6 +222,7 @@ fn network_service(
                         }
                     }
                     Libp2pEvent::PubsubMessage {
+                        id,
                         source,
                         topics,
                         message,
@@ -233,6 +233,9 @@ fn network_service(
                     Libp2pEvent::PeerDialed(peer_id) => {
                         debug!(log, "Peer Dialed: {:?}", peer_id);
                         discovered_peer(peer_id.to_string());
+                    }
+                    Libp2pEvent::PeerSubscribed(peer_id, topic) => {
+                        debug!(log, "Peer {:?} subscribed to topic: {:?}", peer_id, topic);
                     }
                     Libp2pEvent::PeerDisconnected(peer_id) => {
                         debug!(log, "Peer Disconnected: {:?}", peer_id);
@@ -255,7 +258,7 @@ pub enum NetworkMessage {
     Send(PeerId, OutgoingMessage),
     /// Publish a message to pubsub mechanism.
     Publish {
-        topics: Vec<Topic>,
+        topics: Vec<GossipTopic>,
         message: Vec<u8>,
     },
 }

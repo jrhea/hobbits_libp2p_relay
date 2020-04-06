@@ -1,25 +1,34 @@
 [package]
 name = "libp2p-wrapper"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Age Manning <Age@AgeManning.com>"]
 edition = "2018"
 
 [dependencies]
-libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "735313ebda6a98604929f6c4606aefac19e00760" }
-enr =  { git = "https://github.com/SigP/rust-libp2p/", rev = "735313ebda6a98604929f6c4606aefac19e00760", features = ["serde"] }
+hex = "0.3"
+libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "4e3003d5283040fee10da1299252dd060a838d97" }
+# eth2_ssz_types = { git = "https://github.com/SigP/lighthouse", rev = "d7e29382967c16a7a4ce73d1672867523287402b", package = "eth2_ssz_types" }
+eth2_ssz_types = { path =  "../../../../lighthouse/eth2/utils/ssz_types" }
+types = { path =  "../../../../lighthouse/eth2/types" }
 clap = "2.32.0"
-parking_lot = "0.7"
 serde = "1.0.102"
 serde_derive = "1.0.102"
-slog = { version = "^2.4.1" , features = ["max_level_trace"] }
-tokio = "0.1.16"
-tokio-io-timeout = "0.3.1"
-futures = "0.1.25"
-error-chain = "0.12.0"
-dirs = "2.0.1"
+eth2_ssz = { path =  "../../../../lighthouse/eth2/utils/ssz" }
+eth2_ssz_derive = { path =  "../../../../lighthouse/eth2/utils/ssz_derive" }
+slog = { version = "2.5.2", features = ["max_level_trace"] }
+tokio = "0.1.22"
 tokio-io = "0.1.12"
-smallvec = "0.6.10"
+futures = "0.1.29"
+error-chain = "0.12.1"
+dirs = "2.0.2"
 fnv = "1.0.6"
-unsigned-varint = "0.2.2"
+unsigned-varint = "0.2.3"
+tokio-io-timeout = "0.3.1"
+smallvec = "1.0.0"
+lru = "0.4.3"
+parking_lot = "0.9.0"
+sha2 = "0.8.0"
+base64 = "0.11.0"
+snap = "1"
+target_info = "0.1.0"
 bytes = "0.4.12"
-protobuf = "~2.8.1"

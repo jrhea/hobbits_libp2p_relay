@@ -82,12 +82,6 @@ pub unsafe extern "C" fn register_handlers(
 
 #[no_mangle]
 pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
-    env_logger::Builder::from_env(Env::default()).init();
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::CompactFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
-    let slog = slog::Logger::root(drain, o!());
-    let log = slog.new(o!("Network" => "Network"));
     let mut args_vec = Vec::<String>::new();
     for idx in 0..length {
         let args_cstr = CStr::from_ptr(*args_c_char.offset(idx));
@@ -95,26 +89,25 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
             Ok(s) => {
                 args_vec.push(s.to_string());
             }
-            Err(_) => warn!(log, "Invalid libp2p config provided! "),
+            Err(_) => (),
         }
     }
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
-    let (network_globals, network_send, network_exit) = NetworkService::new(
+    let (network_globals, network_send, network_exit, log) = NetworkService::new(
         args_vec,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,
         receive_rpc,
-        log.clone(),
     ).unwrap();
     CONTEXT.push(Context {
         runtime,
         network_globals,
         network_send,
         network_exit,
-        log: log.clone(),
+        log,
     });
 }
 

@@ -1,5 +1,6 @@
-use clap::{App, AppSettings, Arg, ArgMatches};
+use super::error;
 use crate::{Enr, version};
+use clap::{App, AppSettings, Arg, ArgMatches};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
@@ -70,6 +71,9 @@ pub struct Config {
     /// testing purposes and will likely be removed in future versions.
     // TODO: Remove this functionality for mainnet
     pub propagation_percentage: Option<u8>,
+
+    /// log debug level
+    pub debug_level: String,
 }
 
 impl Default for Config {
@@ -128,6 +132,7 @@ impl Default for Config {
             client_version: version::version(),
             topics: vec![],
             propagation_percentage: None,
+            debug_level: "info".to_string(),
         }
     }
 }
@@ -139,7 +144,7 @@ impl Config {
 
     pub fn matches(args: Vec<String>) -> ArgMatches<'static> {
         App::new("Mothra")
-        .version("0.0.1")
+        .version(version::version().as_str())
         .author("Your Mom")
         .about("LibP2P for Dummies")
         .setting(AppSettings::TrailingVarArg)
@@ -148,15 +153,23 @@ impl Config {
             Arg::with_name("datadir")
                 .long("datadir")
                 .value_name("DIR")
-                .help("Data directory for keys and databases.")
+                .help("Data directory for mothra.")
                 .takes_value(true)
         )
         // network related arguments
         .arg(
+            Arg::with_name("zero-ports")
+                .long("zero-ports")
+                .short("z")
+                .help("Sets all listening TCP/UDP ports to 0, allowing the OS to choose some \
+                       arbitrary free ports.")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("listen-address")
                 .long("listen-address")
                 .value_name("ADDRESS")
-                .help("The address the client will listen for UDP and TCP connections. (default 127.0.0.1).")
+                .help("The address the client will listen for UDP and TCP connections.")
                 .default_value("127.0.0.1")
                 .takes_value(true),
         )
@@ -165,12 +178,20 @@ impl Config {
                 .long("port")
                 .value_name("PORT")
                 .help("The TCP/UDP port to listen on. The UDP port can be modified by the --discovery-port flag.")
+                .default_value("9000")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("discovery-port")
+                .long("discovery-port")
+                .value_name("PORT")
+                .help("The discovery UDP port.")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("maxpeers")
                 .long("maxpeers")
-                .help("The maximum number of peers (default 10).")
+                .help("The maximum number of peers.")
                 .default_value("10")
                 .takes_value(true),
         )
@@ -183,18 +204,36 @@ impl Config {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("discovery-port")
-                .long("disc-port")
+            Arg::with_name("enr-udp-port")
+                .long("enr-udp-port")
                 .value_name("PORT")
-                .help("The discovery UDP port.")
-                .default_value("9000")
+                .help("The UDP port of the local ENR. Set this only if you are sure other nodes can connect to your local node on this port.")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("discovery-address")
-                .long("discovery-address")
+            Arg::with_name("enr-tcp-port")
+                .long("enr-tcp-port")
+                .value_name("PORT")
+                .help("The TCP port of the local ENR. Set this only if you are sure other nodes can connect to your local node on this port.\
+                    The --port flag is used if this is not set.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("enr-address")
+                .long("enr-address")
                 .value_name("ADDRESS")
-                .help("The IP address to broadcast to other peers on how to reach this node.")
+                .help("The IP address to broadcast to other peers on how to reach this node. \
+                Set this only if you are sure other nodes can connect to your local node on this address. \
+                Discovery will automatically find your external address,if possible.
+           ")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("disable-enr-auto-update")
+                .short("s")
+                .long("disable-enr-auto-update")
+                .help("Discovery automatically updates the nodes local ENR with an external IP address and port as seen by other peers on the network. \
+                This disables this feature, fixing the ENR's IP/PORT to those specified on boot.")
                 .takes_value(true),
         )
         .arg(
@@ -220,13 +259,6 @@ impl Config {
                 .possible_values(&["info", "debug", "trace", "warn", "error", "crit"])
                 .default_value("info"),
         )
-        .arg(
-            Arg::with_name("verbosity")
-                .short("v")
-                .multiple(true)
-                .help("Sets the verbosity level")
-                .takes_value(true),
-        )
        .get_matches_from_safe(args.iter())
             .unwrap_or_else(|e| {
                 eprintln!("{}", e);
@@ -238,11 +270,6 @@ impl Config {
         // If a `datadir` has been specified, set the network dir to be inside it.
         if let Some(dir) = args.value_of("datadir") {
             self.network_dir = PathBuf::from(dir).join("network");
-        };
-
-        // If a network dir has been specified, override the `datadir` definition.
-        if let Some(dir) = args.value_of("network-dir") {
-            self.network_dir = PathBuf::from(dir);
         };
 
         if let Some(listen_address_str) = args.value_of("listen-address") {
@@ -263,10 +290,17 @@ impl Config {
             let port = port_str
                 .parse::<u16>()
                 .map_err(|_| format!("Invalid port: {}", port_str))?;
-            self.libp2p_port = port;
-            self.discovery_port = port;
-            self.enr_tcp_port = Some(port);
-            self.enr_udp_port = Some(port);
+                self.libp2p_port = port;
+                self.discovery_port = port;
+                self.enr_tcp_port = Some(port);
+                self.enr_udp_port = Some(port);
+        }
+
+        if let Some(disc_port_str) = args.value_of("discovery-port") {
+            self.discovery_port = disc_port_str
+                .parse::<u16>()
+                .map_err(|_| format!("Invalid discovery port: {}", disc_port_str))?;
+                self.enr_udp_port = Some(self.discovery_port);
         }
 
         if let Some(boot_enr_str) = args.value_of("boot-nodes") {
@@ -287,24 +321,91 @@ impl Config {
                 .collect::<Result<Vec<Multiaddr>, _>>()?;
         }
 
+        if let Some(enr_address_str) = args.value_of("enr-address") {
+            self.enr_address = Some(
+                enr_address_str
+                    .parse()
+                    .map_err(|_| format!("Invalid discovery address: {:?}", enr_address_str))?,
+            )
+        }
+
+        if let Some(enr_udp_port_str) = args.value_of("enr-udp-port") {
+            self.enr_udp_port = Some(
+                enr_udp_port_str
+                    .parse::<u16>()
+                    .map_err(|_| format!("Invalid discovery port: {}", enr_udp_port_str))?,
+            );
+        }
+    
+        if let Some(enr_tcp_port_str) = args.value_of("enr-tcp-port") {
+            self.enr_tcp_port = Some(
+                enr_tcp_port_str
+                    .parse::<u16>()
+                    .map_err(|_| format!("Invalid ENR TCP port: {}", enr_tcp_port_str))?,
+            );
+        }
+
+
+        if args.is_present("disable_enr_auto_update") {
+            self.discv5_config.enr_update = false;
+        }
+
         if let Some(topics_str) = args.value_of("topics") {
             self.topics = topics_str.split(',').map(|s| s.into()).collect();
         }
 
-        if let Some(enr_address_str) = args.value_of("enr-address") {
-            let enr_address = enr_address_str
-                .parse()
-                .map_err(|_| format!("Invalid enr address: {:?}", enr_address_str))?;
-            self.enr_address = Some(enr_address);
+        if let Some(debug_level_str) = args.value_of("debug-level") {
+            self.debug_level = debug_level_str
+                    .parse()
+                    .map_err(|_| format!("Invalid debug-level: {:?}", debug_level_str))?;
         }
 
-        if let Some(disc_port_str) = args.value_of("disc-port") {
-            self.discovery_port = disc_port_str
-                .parse::<u16>()
-                .map_err(|_| format!("Invalid discovery port: {}", disc_port_str))?;
-            self.enr_udp_port = Some(self.discovery_port);
+        /*
+        * Zero-ports
+        *
+        * Replaces previously set flags.
+        * Libp2p and discovery ports are set explicitly by selecting
+        * a random free port so that we aren't needlessly updating ENR
+        * Discovery address is set to localhost by default.
+        */
+        if let Some(zero_ports_str) = args.value_of("zero-ports") {
+            if self.enr_address == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))) {
+                self.enr_address = None
+            }
+            self.libp2p_port =
+                Config::unused_port("tcp").map_err(|e| format!("Failed to get port for libp2p: {}", e))?;
+            self.discovery_port =
+                Config::unused_port("udp").map_err(|e| format!("Failed to get port for discovery: {}", e))?;
         }
 
         Ok(())
+    }
+
+    pub fn unused_port(transport: &str) -> error::Result<u16> {
+        let local_addr = match transport {
+            "tcp" => {
+                let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| {
+                    format!("Failed to create TCP listener to find unused port: {:?}", e)
+                })?;
+                listener.local_addr().map_err(|e| {
+                    format!(
+                        "Failed to read TCP listener local_addr to find unused port: {:?}",
+                        e
+                    )
+                })?
+            }
+            "udp" => {
+                let socket = std::net::UdpSocket::bind("127.0.0.1:0") 
+                    .map_err(|e| format!("Failed to create UDP socket to find unused port: {:?}", e))?;
+                socket.local_addr().map_err(|e| {
+                    format!(
+                        "Failed to read UDP socket local_addr to find unused port: {:?}",
+                        e
+                    )
+                })?
+            }
+            _ => return Err("Invalid transport to find unused port".into()),
+        };
+        Ok(local_addr.port())
     }
 }

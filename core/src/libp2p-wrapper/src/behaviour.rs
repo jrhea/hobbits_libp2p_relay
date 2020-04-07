@@ -46,11 +46,11 @@ pub struct Behaviour<TSubstream: AsyncRead + AsyncWrite> {
     /// A collections of variables accessible outside the network service.
     #[behaviour(ignore)]
     network_globals: Arc<NetworkGlobals>,
-    #[behaviour(ignore)]
     /// Keeps track of the current EnrForkId for upgrading gossipsub topics.
-    enr_fork_id: Vec<u8>,
     #[behaviour(ignore)]
+    enr_fork_id: Vec<u8>,
     /// Logger for behaviour actions.
+    #[behaviour(ignore)]
     log: slog::Logger,
 }
 
@@ -220,7 +220,6 @@ impl<TSubstream: AsyncRead + AsyncWrite>
     fn inject_event(&mut self, event: GossipsubEvent) {
         match event {
             GossipsubEvent::Message(propagation_source, id, gs_msg) => {
-                println!("GossipMessage received from: {:?}", propagation_source);
                 // Note: We are keeping track here of the peer that sent us the message, not the
                 // peer that originally published the message.
                 if self.seen_gossip_messages.put(id.clone(), ()).is_none() {

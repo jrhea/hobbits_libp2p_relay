@@ -5,7 +5,8 @@ use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{Libp2pEvent, MessageId, PeerId, Swarm};
 use libp2p_wrapper::{NetworkConfig, NetworkGlobals, GossipTopic, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Enr};
 use parking_lot::Mutex;
-use slog::{debug, info, o, warn, trace};
+use slog::{debug, info, o, warn, trace, Drain, Level, Logger};
+use env_logger::Env;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::timer::Delay;
@@ -47,16 +48,33 @@ impl NetworkService {
         discovered_peer: DiscoveredPeerType,
         receive_gossip: ReceiveGossipType,
         receive_rpc: ReceiveRpcType,
-        log: slog::Logger,
     ) -> error::Result<(
         Arc<NetworkGlobals>,
         mpsc::UnboundedSender<NetworkMessage>,
         oneshot::Sender<()>,
+        slog::Logger,
     )> {
         // build NetworkConfig from args 
         let arg_matches = NetworkConfig::matches(args);
         let mut config = NetworkConfig::new();
         config.apply_cli_args(&arg_matches).unwrap();
+
+        // configure logging
+        env_logger::Builder::from_env(Env::default()).init();
+        let decorator = slog_term::TermDecorator::new().build();
+        let drain = slog_term::CompactFormat::new(decorator).build().fuse();
+        let drain = slog_async::Async::new(drain).build();
+        let drain = match config.debug_level.as_str() {
+            "info" => drain.filter_level(Level::Info),
+            "debug" => drain.filter_level(Level::Debug),
+            "trace" => drain.filter_level(Level::Trace),
+            "warn" => drain.filter_level(Level::Warning), 
+            "error" => drain.filter_level(Level::Error),
+            "crit" => drain.filter_level(Level::Critical),
+            unknown => drain.filter_level(Level::Info),
+        };
+        let slog = Logger::root(drain.fuse(), o!());
+        let log = slog.new(o!("Mothra" => "Network"));
 
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
@@ -89,12 +107,12 @@ impl NetworkService {
             discovered_peer,
             receive_gossip,
             receive_rpc,
-            log: log,
+            log: log.clone(),
         };
 
         let network_exit = spawn_service(network_service, &executor)?;
 
-        Ok((network_globals, network_send, network_exit))
+        Ok((network_globals, network_send, network_exit, log.clone()))
     }
 }
 

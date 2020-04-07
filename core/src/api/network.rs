@@ -1,17 +1,19 @@
 use super::error;
+use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
 use libp2p_wrapper::Service as LibP2PService;
+use libp2p_wrapper::{
+    Enr, GossipTopic, NetworkConfig, NetworkGlobals, RPCErrorResponse, RPCEvent, RPCRequest,
+    RPCResponse,
+};
 use libp2p_wrapper::{Libp2pEvent, MessageId, PeerId, Swarm};
-use libp2p_wrapper::{NetworkConfig, NetworkGlobals, GossipTopic, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Enr};
-use parking_lot::Mutex;
-use slog::{debug, info, o, warn, trace, Drain, Level, Logger};
-use env_logger::Env;
+use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::timer::Delay;
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
+use tokio::timer::Delay;
 
 /// The time in seconds that a peer will be banned and prevented from reconnecting.
 const BAN_PEER_TIMEOUT: u64 = 30;
@@ -54,7 +56,7 @@ impl NetworkService {
         oneshot::Sender<()>,
         slog::Logger,
     )> {
-        // build NetworkConfig from args 
+        // build NetworkConfig from args
         let arg_matches = NetworkConfig::matches(args);
         let mut config = NetworkConfig::new();
         config.apply_cli_args(&arg_matches).unwrap();
@@ -68,10 +70,10 @@ impl NetworkService {
             "info" => drain.filter_level(Level::Info),
             "debug" => drain.filter_level(Level::Debug),
             "trace" => drain.filter_level(Level::Trace),
-            "warn" => drain.filter_level(Level::Warning), 
+            "warn" => drain.filter_level(Level::Warning),
             "error" => drain.filter_level(Level::Error),
             "crit" => drain.filter_level(Level::Critical),
-            unknown => drain.filter_level(Level::Info),
+            _ => drain.filter_level(Level::Info),
         };
         let slog = Logger::root(drain.fuse(), o!());
         let log = slog.new(o!("Mothra" => "Network"));
@@ -333,7 +335,12 @@ fn spawn_service(
     Ok(network_exit)
 }
 
-pub fn gossip(mut network_send: mpsc::UnboundedSender<NetworkMessage>, topic: String, data: Vec<u8>, log: slog::Logger) {
+pub fn gossip(
+    mut network_send: mpsc::UnboundedSender<NetworkMessage>,
+    topic: String,
+    data: Vec<u8>,
+    log: slog::Logger,
+) {
     network_send
         .try_send(NetworkMessage::Publish {
             topics: vec![GossipTopic::new(topic)],
@@ -342,7 +349,13 @@ pub fn gossip(mut network_send: mpsc::UnboundedSender<NetworkMessage>, topic: St
         .unwrap_or_else(|_| warn!(log, "Could not send gossip message."));
 }
 
-pub fn rpc_request(mut network_send: mpsc::UnboundedSender<NetworkMessage>, method: String, peer: String, data: Vec<u8>, log: slog::Logger) {
+pub fn rpc_request(
+    mut network_send: mpsc::UnboundedSender<NetworkMessage>,
+    method: String,
+    peer: String,
+    data: Vec<u8>,
+    log: slog::Logger,
+) {
     // use 0 as the default request id, when an ID is not required.
     let request_id: usize = 0;
     let rpc_request: RPCRequest = RPCRequest::Message(data);
@@ -350,19 +363,17 @@ pub fn rpc_request(mut network_send: mpsc::UnboundedSender<NetworkMessage>, meth
     let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
     let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
     network_send
-        .try_send(NetworkMessage::RPC(
-            peer_id,
-            rpc_event,
-        ))
-        .unwrap_or_else(|_| {
-            warn!(
-                log,
-                "Could not send RPC message to the network service"
-            )
-        });
+        .try_send(NetworkMessage::RPC(peer_id, rpc_event))
+        .unwrap_or_else(|_| warn!(log, "Could not send RPC message to the network service"));
 }
 
-pub fn rpc_response(mut network_send: mpsc::UnboundedSender<NetworkMessage>, method: String, peer: String, data: Vec<u8>, log: slog::Logger) {
+pub fn rpc_response(
+    mut network_send: mpsc::UnboundedSender<NetworkMessage>,
+    method: String,
+    peer: String,
+    data: Vec<u8>,
+    log: slog::Logger,
+) {
     // use 0 as the default request id, when an ID is not required.
     let request_id: usize = 0;
     let rpc_response: RPCResponse = RPCResponse::Message(data);
@@ -371,16 +382,8 @@ pub fn rpc_response(mut network_send: mpsc::UnboundedSender<NetworkMessage>, met
     let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
     let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
     network_send
-        .try_send(NetworkMessage::RPC(
-            peer_id,
-            rpc_event,
-        ))
-        .unwrap_or_else(|_| {
-            warn!(
-                log,
-                "Could not send RPC message to the network service"
-            )
-        });
+        .try_send(NetworkMessage::RPC(peer_id, rpc_event))
+        .unwrap_or_else(|_| warn!(log, "Could not send RPC message to the network service"));
 }
 
 /// Types of messages that the network service can receive.

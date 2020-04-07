@@ -23,7 +23,6 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::timer::DelayQueue;
-use types::{EnrForkId,MainnetEthSpec};
 
 type Libp2pStream = Boxed<(PeerId, StreamMuxerBox), Error>;
 type Libp2pBehaviour = Behaviour<Substream<StreamMuxerBox>>;
@@ -157,7 +156,7 @@ impl Service {
 
         let mut subscribed_topics = vec![];
         for topic in topics {
-            if swarm.subscribe(topic.clone().into()) {
+            if swarm.subscribe(topic.clone()) {
                 debug!(log, "Subscribed to topic: {:?}", topic);
                 subscribed_topics.push(topic);
             } else {
@@ -313,7 +312,7 @@ fn build_transport(local_private_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)
         .timeout(Duration::from_secs(20));
 
     // Multiplexing
-    let transport = transport
+    transport
         .and_then(move |(stream, peer_id), endpoint| {
             let peer_id2 = peer_id.clone();
             let upgrade = core::upgrade::SelectUpgrade::new(
@@ -328,8 +327,7 @@ fn build_transport(local_private_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)
         })
         .timeout(Duration::from_secs(20))
         .map_err(|err| Error::new(ErrorKind::Other, err))
-        .boxed();
-    transport
+        .boxed()
 }
 
 #[derive(Debug)]

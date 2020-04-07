@@ -15,7 +15,7 @@ use libp2p::{
 use lru::LruCache;
 use slog::{crit, debug, o, warn};
 use std::sync::Arc;
-use types::{EnrForkId, SubnetId, MainnetEthSpec};
+use types::{EnrForkId, SubnetId};
 
 
 const MAX_IDENTIFY_ADDRESSES: usize = 20;
@@ -224,7 +224,7 @@ impl<TSubstream: AsyncRead + AsyncWrite>
                 // peer that originally published the message.
                 if self.seen_gossip_messages.put(id.clone(), ()).is_none() {
                     self.events.push(BehaviourEvent::GossipMessage {
-                        id: id,
+                        id,
                         source: propagation_source,
                         topics: gs_msg.topics,
                         message: gs_msg.data

@@ -14,9 +14,9 @@ use std::str::FromStr;
 use types::{EnrForkId, EthSpec};
 
 /// The ENR field specifying the fork id.
-pub const ETH2_ENR_KEY: &'static str = "eth2";
+pub const ETH2_ENR_KEY: &str = "eth2";
 /// The ENR field specifying the subnet bitfield.
-pub const BITFIELD_ENR_KEY: &'static str = "attnets";
+pub const BITFIELD_ENR_KEY: &str = "attnets";
 
 /// Loads an ENR from file if it exists and matches the current NodeId and sequence number. If none
 /// exists, generates a new one.

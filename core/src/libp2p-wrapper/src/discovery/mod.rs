@@ -111,7 +111,7 @@ impl<TSubstream> Discovery<TSubstream> {
                 warn!(
                     log,
                     "Could not add peer to the local routing table";
-                    "error" => format!("{}", e)
+                    "error" => e.to_string()
                 )
             });
         }
@@ -147,7 +147,7 @@ impl<TSubstream> Discovery<TSubstream> {
             warn!(
                 self.log,
                 "Could not add peer to the local routing table";
-                "error" => format!("{}", e)
+                "error" => e.to_string()
             )
         });
     }
@@ -231,7 +231,7 @@ impl<TSubstream> Discovery<TSubstream> {
 
         let _ = self
             .discovery
-            .enr_insert(ETH2_ENR_KEY.into(), enr_fork_id.as_ssz_bytes())
+            .enr_insert(ETH2_ENR_KEY, enr_fork_id.as_ssz_bytes())
             .map_err(|e| {
                 warn!(
                     self.log,
@@ -339,7 +339,7 @@ impl<TSubstream> Discovery<TSubstream> {
     fn enr_fork_id(&self) -> Vec<u8> {
         self.local_enr()
             .get(ETH2_ENR_KEY)
-            .map(|bytes| bytes.clone())
+            .cloned()
             .unwrap_or_else(|| {
                 crit!(self.log, "Local ENR has no eth2 field");
                 Vec::new()

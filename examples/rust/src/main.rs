@@ -1,9 +1,7 @@
 use std::{thread, time};
 use tokio::runtime::Runtime;
-use tokio::sync::{mpsc, oneshot};
-use std::sync::Arc;
 use slog::{debug, info, o, warn, Drain};
-use mothra::{network, network::NetworkService, network::NetworkMessage, NetworkGlobals};
+use mothra::{network, network::NetworkService};
 
 fn main() {
     let start = time::Instant::now();

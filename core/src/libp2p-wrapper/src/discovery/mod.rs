@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::timer::Delay;
-use types::{EnrForkId, EthSpec, SubnetId};
+use types::{EnrForkId, EthSpec, MainnetEthSpec, SubnetId};
 
 /// Maximum seconds before searching for extra peers.
 const MAX_TIME_BETWEEN_PEER_SEARCHES: u64 = 120;
@@ -32,9 +32,9 @@ const ENR_FILENAME: &str = "enr.dat";
 /// Number of peers we'd like to have connected to a given long-lived subnet.
 const TARGET_SUBNET_PEERS: u64 = 3;
 
-/// Lighthouse discovery behaviour. This provides peer management and discovery using the Discv5
+///  This provides peer management and discovery using the Discv5
 /// libp2p protocol.
-pub struct Discovery<TSubstream, TSpec: EthSpec> {
+pub struct Discovery<TSubstream> {
     /// The currently banned peers.
     banned_peers: HashSet<PeerId>,
 
@@ -60,25 +60,25 @@ pub struct Discovery<TSubstream, TSpec: EthSpec> {
     discovery: Discv5<TSubstream>,
 
     /// A collection of network constants that can be read from other threads.
-    network_globals: Arc<NetworkGlobals<TSpec>>,
+    network_globals: Arc<NetworkGlobals>,
 
     /// Logger for the discovery behaviour.
     log: slog::Logger,
 }
 
-impl<TSubstream, TSpec: EthSpec> Discovery<TSubstream, TSpec> {
+impl<TSubstream> Discovery<TSubstream> {
     pub fn new(
         local_key: &Keypair,
         config: &NetworkConfig,
         enr_fork_id: Vec<u8>,
-        network_globals: Arc<NetworkGlobals<TSpec>>,
+        network_globals: Arc<NetworkGlobals>,
         log: &slog::Logger,
     ) -> error::Result<Self> {
         let log = log.clone();
 
         // checks if current ENR matches that found on disk
         let local_enr =
-            enr_helpers::build_or_load_enr::<TSpec>(local_key.clone(), config, enr_fork_id, &log)?;
+            enr_helpers::build_or_load_enr::<MainnetEthSpec>(local_key.clone(), config, enr_fork_id, &log)?;
 
         *network_globals.local_enr.write() = Some(local_enr.clone());
 
@@ -178,7 +178,7 @@ impl<TSubstream, TSpec: EthSpec> Discovery<TSubstream, TSpec> {
             .ok_or_else(|| "ENR bitfield non-existent")?;
 
         let mut current_bitfield =
-            BitVector::<TSpec::SubnetBitfieldLength>::from_ssz_bytes(bitfield_bytes)
+            BitVector::<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>::from_ssz_bytes(bitfield_bytes)
                 .map_err(|_| "Could not decode local ENR SSZ bitfield")?;
 
         if id >= current_bitfield.len() {
@@ -274,7 +274,7 @@ impl<TSubstream, TSpec: EthSpec> Discovery<TSubstream, TSpec> {
 
             let subnet_predicate = move |enr: &Enr| {
                 if let Some(bitfield_bytes) = enr.get(BITFIELD_ENR_KEY) {
-                    let bitfield = match BitVector::<TSpec::SubnetBitfieldLength>::from_ssz_bytes(
+                    let bitfield = match BitVector::<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>::from_ssz_bytes(
                         bitfield_bytes,
                     ) {
                         Ok(v) => v,
@@ -348,7 +348,7 @@ impl<TSubstream, TSpec: EthSpec> Discovery<TSubstream, TSpec> {
 }
 
 // Redirect all behaviour events to underlying discovery behaviour.
-impl<TSubstream, TSpec: EthSpec> NetworkBehaviour for Discovery<TSubstream, TSpec>
+impl<TSubstream> NetworkBehaviour for Discovery<TSubstream>
 where
     TSubstream: AsyncRead + AsyncWrite,
 {
@@ -370,7 +370,7 @@ where
         if let Some(enr) = self.discovery.enr_of_peer(&peer_id) {
             let bitfield = match enr.get(BITFIELD_ENR_KEY) {
                 Some(bitfield_bytes) => {
-                    match EnrBitfield::<TSpec>::from_ssz_bytes(bitfield_bytes) {
+                    match EnrBitfield::<MainnetEthSpec>::from_ssz_bytes(bitfield_bytes) {
                         Ok(bitfield) => bitfield,
                         Err(e) => {
                             warn!(self.log, "Peer had invalid ENR bitfield"; 

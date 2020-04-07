@@ -2,30 +2,45 @@ use super::error;
 use futures::prelude::*;
 use futures::Stream;
 use libp2p_wrapper::Service as LibP2PService;
-use libp2p_wrapper::{Libp2pEvent, PeerId};
-use libp2p_wrapper::{NetworkConfig, GossipTopic, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
+use libp2p_wrapper::{Libp2pEvent, MessageId, PeerId, Swarm};
+use libp2p_wrapper::{NetworkConfig, NetworkGlobals, GossipTopic, RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Enr};
 use parking_lot::Mutex;
-use slog::{debug, info, o, warn};
+use slog::{debug, info, o, warn, trace};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::timer::Delay;
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 
-pub const GOSSIP: &str = "GOSSIP";
-pub const RPC: &str = "RPC";
-pub const DISCOVERY: &str = "DISCOVERY";
+/// The time in seconds that a peer will be banned and prevented from reconnecting.
+const BAN_PEER_TIMEOUT: u64 = 30;
 
 type DiscoveredPeerType = fn(peer: String);
 type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
 type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
-pub struct Network {
-    libp2p_service: Arc<Mutex<LibP2PService>>,
-    _libp2p_exit: oneshot::Sender<()>,
+/// Handles communication between calling code and the `libp2p_p2p` service.
+pub struct NetworkService {
+    /// The underlying libp2p service that drives all the network interactions.
+    libp2p: LibP2PService,
+    /// The network receiver channel
+    network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
+    /// The network sender channel
     network_send: mpsc::UnboundedSender<NetworkMessage>,
+    /// A collection of global variables, accessible outside of the network service.
+    network_globals: Arc<NetworkGlobals>,
+    /// An initial delay to update variables after the libp2p service has started.
+    initial_delay: Delay,
+    /// Probability of message propagation.
+    propagation_percentage: Option<u8>,
+    discovered_peer: DiscoveredPeerType,
+    receive_gossip: ReceiveGossipType,
+    receive_rpc: ReceiveRpcType,
+    /// The logger for the network service.
     log: slog::Logger,
 }
 
-impl Network {
+impl NetworkService {
     pub fn new(
         args: Vec<String>,
         executor: &TaskExecutor,
@@ -33,152 +48,179 @@ impl Network {
         receive_gossip: ReceiveGossipType,
         receive_rpc: ReceiveRpcType,
         log: slog::Logger,
-    ) -> error::Result<Self> {
+    ) -> error::Result<(
+        Arc<NetworkGlobals>,
+        mpsc::UnboundedSender<NetworkMessage>,
+        oneshot::Sender<()>,
+    )> {
+        // build NetworkConfig from args 
         let arg_matches = NetworkConfig::matches(args);
         let mut config = NetworkConfig::new();
         config.apply_cli_args(&arg_matches).unwrap();
+
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
+
+        let propagation_percentage = config.propagation_percentage;
+        // build the current enr_fork_id for adding to our local ENR
+        //TODO
+        let enr_fork_id = [0u8; 32].to_vec();
+
         // launch libp2p Network
-        let libp2p_log = log.new(o!("Network" => "Libp2p"));
-        let libp2p_service = Arc::new(Mutex::new(LibP2PService::new(&config, [0u8; 32].to_vec(), libp2p_log)?));
-        let libp2p_exit = spawn_service(
-            libp2p_service.clone(),
+        let (network_globals, libp2p) = LibP2PService::new(&config, enr_fork_id, log.clone())?;
+
+        //TODO
+        // for enr in load_dht::<T::Store, T::EthSpec>(store.clone()) {
+        //     libp2p.swarm.add_enr(enr);
+        // }
+
+        // A delay used to initialise code after the network has started
+        // This is currently used to obtain the listening addresses from the libp2p service.
+        let initial_delay = Delay::new(Instant::now() + Duration::from_secs(1));
+
+        // create & spawn the network service
+        let network_service = NetworkService {
+            libp2p,
             network_recv,
-            executor,
+            network_send: network_send.clone(),
+            network_globals: network_globals.clone(),
+            initial_delay,
+            propagation_percentage,
             discovered_peer,
             receive_gossip,
             receive_rpc,
-            log.clone(),
-        )?;
-
-        let network_service = Network {
-            libp2p_service,
-            _libp2p_exit: libp2p_exit,
-            network_send,
-            log: log.clone(),
+            log: log,
         };
 
-        Ok(network_service)
-    }
+        let network_exit = spawn_service(network_service, &executor)?;
 
-    pub fn gossip(&mut self, topic: String, data: Vec<u8>) {
-        self.network_send
-            .try_send(NetworkMessage::Publish {
-                topics: vec![GossipTopic::new(topic)],
-                message: data,
-            })
-            .unwrap_or_else(|_| warn!(self.log, "Could not send gossip message."));
-    }
-
-    pub fn rpc_request(&mut self, method: String, peer: String, data: Vec<u8>) {
-        // use 0 as the default request id, when an ID is not required.
-        let request_id: usize = 0;
-        let rpc_request: RPCRequest = RPCRequest::Message(data);
-        let rpc_event: RPCEvent = RPCEvent::Request(request_id, rpc_request);
-        let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
-        let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
-        self.network_send
-            .try_send(NetworkMessage::Send(
-                peer_id,
-                OutgoingMessage::RPC(rpc_event),
-            ))
-            .unwrap_or_else(|_| {
-                warn!(
-                    self.log,
-                    "Could not send RPC message to the network service"
-                )
-            });
-    }
-
-    pub fn rpc_response(&mut self, method: String, peer: String, data: Vec<u8>) {
-        // use 0 as the default request id, when an ID is not required.
-        let request_id: usize = 0;
-        let rpc_response: RPCResponse = RPCResponse::Message(data);
-        let rpc_event: RPCEvent =
-            RPCEvent::Response(request_id, RPCErrorResponse::Success(rpc_response));
-        let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
-        let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
-        self.network_send
-            .try_send(NetworkMessage::Send(
-                peer_id,
-                OutgoingMessage::RPC(rpc_event),
-            ))
-            .unwrap_or_else(|_| {
-                warn!(
-                    self.log,
-                    "Could not send RPC message to the network service"
-                )
-            });
+        Ok((network_globals, network_send, network_exit))
     }
 }
 
 fn spawn_service(
-    libp2p_service: Arc<Mutex<LibP2PService>>,
-    network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
+    mut service: NetworkService,
     executor: &TaskExecutor,
-    discovered_peer: DiscoveredPeerType,
-    receive_gossip: ReceiveGossipType,
-    receive_rpc: ReceiveRpcType,
-    log: slog::Logger,
 ) -> error::Result<tokio::sync::oneshot::Sender<()>> {
-    let (network_exit, exit_rx) = tokio::sync::oneshot::channel();
+    let (network_exit, mut exit_rx) = tokio::sync::oneshot::channel();
+
     // spawn on the current executor
     executor.spawn(
-        network_service(
-            libp2p_service,
-            network_recv,
-            discovered_peer,
-            receive_gossip,
-            receive_rpc,
-            log.clone(),
-        )
-        // allow for manual termination
-        .select(exit_rx.then(|_| Ok(())))
-        .then(move |_| {
-            info!(log, "Network shutdown");
-            Ok(())
-        }),
-    );
-    Ok(network_exit)
-}
+    futures::future::poll_fn(move || -> Result<_, ()> {
 
-fn network_service(
-    libp2p_service: Arc<Mutex<LibP2PService>>,
-    mut network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
-    discovered_peer: DiscoveredPeerType,
-    receive_gossip: ReceiveGossipType,
-    receive_rpc: ReceiveRpcType,
-    log: slog::Logger,
-) -> impl futures::Future<Item = (), Error = libp2p_wrapper::error::Error> {
-    futures::future::poll_fn(move || -> Result<_, libp2p_wrapper::error::Error> {
+        let log = &service.log;
+
+        // handles any logic which requires an initial delay
+        if !service.initial_delay.is_elapsed() {
+            if let Ok(Async::Ready(_)) = service.initial_delay.poll() {
+                        let multi_addrs = Swarm::listeners(&service.libp2p.swarm).cloned().collect();
+                        *service.network_globals.listen_multiaddrs.write() = multi_addrs;
+            }
+        }
+
+        // perform termination tasks when the network is being shutdown
+        if let Ok(Async::Ready(_)) | Err(_) = exit_rx.poll() {
+                    // network thread is terminating TODO
+                    // let enrs: Vec<Enr> = service.libp2p.swarm.enr_entries().cloned().collect();
+                    // debug!(
+                    //     log,
+                    //     "Persisting DHT to store";
+                    //     "Number of peers" => format!("{}", enrs.len()),
+                    // );
+                    // match persist_dht::<T::Store, T::EthSpec>(service.store.clone(), enrs) {
+                    //     Err(e) => error!(
+                    //         log,
+                    //         "Failed to persist DHT on drop";
+                    //         "error" => format!("{:?}", e)
+                    //     ),
+                    //     Ok(_) => info!(
+                    //         log,
+                    //         "Saved DHT state";
+                    //     ),
+                    // }
+
+                    info!(log.clone(), "Network service shutdown");
+                    return Ok(Async::Ready(()));
+        }
+
+        // processes the network channel before processing the libp2p swarm
         loop {
             // poll the network channel
-            match network_recv.poll() {
+            match service.network_recv.poll() {
                 Ok(Async::Ready(Some(message))) => match message {
-                    NetworkMessage::Send(peer_id, outgoing_message) => match outgoing_message {
-                        OutgoingMessage::RPC(rpc_event) => {
-                            debug!(log, "Sending RPC Event: {:?}", rpc_event);
-                            libp2p_service.lock().swarm.send_rpc(peer_id, rpc_event);
+                    NetworkMessage::RPC(peer_id, rpc_event) => {
+                        trace!(log, "Sending RPC"; "rpc" => format!("{:?}", rpc_event));
+                        service.libp2p.swarm.send_rpc(peer_id, rpc_event);
+                    }
+                    NetworkMessage::Propagate {
+                        propagation_source,
+                        message_id,
+                    } => {
+                        // TODO: Remove this for mainnet
+                        // randomly prevents propagation
+                        let mut should_send = true;
+                        if let Some(percentage) = service.propagation_percentage {
+                            // not exact percentage but close enough
+                            let rand = rand::random::<u8>() % 100;
+                            if rand > percentage {
+                                // don't propagate
+                                should_send = false;
+                            }
                         }
-                    },
+                        if !should_send {
+                            info!(log, "Random filter did not propagate message");
+                        } else {
+                            trace!(log, "Propagating gossipsub message";
+                            "propagation_peer" => format!("{:?}", propagation_source),
+                            "message_id" => message_id.to_string(),
+                            );
+                            service.libp2p
+                                .swarm
+                                .propagate_message(&propagation_source, message_id);
+                        }
+                    }
                     NetworkMessage::Publish { topics, message } => {
-                        debug!(log, "Sending pubsub message"; "topics" => format!("{:?}",topics));
-                        libp2p_service.lock().swarm.publish(topics, message);
+                        // TODO: Remove this for mainnet
+                        // randomly prevents propagation
+                        let mut should_send = true;
+                        if let Some(percentage) = service.propagation_percentage {
+                            // not exact percentage but close enough
+                            let rand = rand::random::<u8>() % 100;
+                            if rand > percentage {
+                                // don't propagate
+                                should_send = false;
+                            }
+                        }
+                        if !should_send {
+                            info!(log, "Random filter did not publish messages");
+                        } else {
+                            debug!(log, "Sending pubsub message"; "topics" => format!("{:?}",topics));
+                            service.libp2p.swarm.publish(topics, message);
+                        }
+                    }
+                    NetworkMessage::Disconnect { peer_id } => {
+                        service.libp2p.disconnect_and_ban_peer(
+                            peer_id,
+                            std::time::Duration::from_secs(BAN_PEER_TIMEOUT),
+                        );
                     }
                 },
                 Ok(Async::NotReady) => break,
                 Ok(Async::Ready(None)) => {
-                    return Err(libp2p_wrapper::error::Error::from("Network channel closed"));
+                    debug!(log, "Network channel closed");
+                    return Err(());
                 }
-                Err(_) => {
-                    return Err(libp2p_wrapper::error::Error::from("Network channel error"));
+                Err(e) => {
+                    debug!(log, "Network channel error"; "error" => format!("{}", e));
+                    return Err(());
                 }
             }
         }
+
+        let mut peers_to_ban = Vec::<PeerId>::new();
+        // poll the swarm
         loop {
-            // poll the swarm
-            match libp2p_service.lock().poll() {
+            match service.libp2p.poll() {
                 Ok(Async::Ready(Some(event))) => match event {
                     Libp2pEvent::RPC(peer_id, rpc_event) => {
                         debug!(log, "RPC Event: {:?}", rpc_event);
@@ -186,7 +228,7 @@ fn network_service(
                             RPCEvent::Request(_, request) => match request {
                                 RPCRequest::Message(data) => {
                                     debug!(log, "RPCRequest message received: {:?}", data);
-                                    receive_rpc(
+                                    (service.receive_rpc)(
                                         "".to_string(),
                                         0,
                                         peer_id.to_string(),
@@ -207,7 +249,7 @@ fn network_service(
                                 RPCErrorResponse::Success(response) => match response {
                                     RPCResponse::Message(data) => {
                                         debug!(log, "RPCResponse message received: {:?}", data);
-                                        receive_rpc(
+                                        (service.receive_rpc)(
                                             "".to_string(),
                                             1,
                                             peer_id.to_string(),
@@ -221,6 +263,13 @@ fn network_service(
                             }
                         }
                     }
+                    Libp2pEvent::PeerDialed(peer_id) => {
+                        debug!(log, "Peer Dialed: {:?}", peer_id);
+                        (service.discovered_peer)(peer_id.to_string());
+                    }
+                    Libp2pEvent::PeerDisconnected(peer_id) => {
+                        debug!(log, "Peer Disconnected: {:?}", peer_id);
+                    }
                     Libp2pEvent::PubsubMessage {
                         id,
                         source,
@@ -228,17 +277,10 @@ fn network_service(
                         message,
                     } => {
                         debug!(log, "Gossip message received: {:?}", message);
-                        receive_gossip(topics[0].to_string(), message.clone());
-                    }
-                    Libp2pEvent::PeerDialed(peer_id) => {
-                        debug!(log, "Peer Dialed: {:?}", peer_id);
-                        discovered_peer(peer_id.to_string());
+                        (service.receive_gossip)(topics[0].to_string(), message.clone());
                     }
                     Libp2pEvent::PeerSubscribed(peer_id, topic) => {
                         debug!(log, "Peer {:?} subscribed to topic: {:?}", peer_id, topic);
-                    }
-                    Libp2pEvent::PeerDisconnected(peer_id) => {
-                        debug!(log, "Peer Disconnected: {:?}", peer_id);
                     }
                 },
                 Ok(Async::Ready(None)) => unreachable!("Stream never ends"),
@@ -246,26 +288,98 @@ fn network_service(
                 Err(_) => break,
             }
         }
+
+        // ban and disconnect any peers that sent Goodbye requests
+        while let Some(peer_id) = peers_to_ban.pop() {
+            service.libp2p.disconnect_and_ban_peer(
+                peer_id.clone(),
+                std::time::Duration::from_secs(BAN_PEER_TIMEOUT),
+            );
+        }
+
+        // if we have just forked, update inform the libp2p layer TODO
+        // if let Some(mut update_fork_delay) =  service.next_fork_update.take() {
+        //     if !update_fork_delay.is_elapsed() {
+        //         if let Ok(Async::Ready(_)) = update_fork_delay.poll() {
+        //                 service.libp2p.swarm.update_fork_version(service.beacon_chain.enr_fork_id());
+        //                 service.next_fork_update = next_fork_delay(&service.beacon_chain);
+        //         }
+        //     }
+        // }
+
         Ok(Async::NotReady)
     })
+
+    );
+
+    Ok(network_exit)
 }
 
-/// Types of messages that the network Network can receive.
+pub fn gossip(mut network_send: mpsc::UnboundedSender<NetworkMessage>, topic: String, data: Vec<u8>, log: slog::Logger) {
+    network_send
+        .try_send(NetworkMessage::Publish {
+            topics: vec![GossipTopic::new(topic)],
+            message: data,
+        })
+        .unwrap_or_else(|_| warn!(log, "Could not send gossip message."));
+}
+
+pub fn rpc_request(mut network_send: mpsc::UnboundedSender<NetworkMessage>, method: String, peer: String, data: Vec<u8>, log: slog::Logger) {
+    // use 0 as the default request id, when an ID is not required.
+    let request_id: usize = 0;
+    let rpc_request: RPCRequest = RPCRequest::Message(data);
+    let rpc_event: RPCEvent = RPCEvent::Request(request_id, rpc_request);
+    let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
+    let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
+    network_send
+        .try_send(NetworkMessage::RPC(
+            peer_id,
+            rpc_event,
+        ))
+        .unwrap_or_else(|_| {
+            warn!(
+                log,
+                "Could not send RPC message to the network service"
+            )
+        });
+}
+
+pub fn rpc_response(mut network_send: mpsc::UnboundedSender<NetworkMessage>, method: String, peer: String, data: Vec<u8>, log: slog::Logger) {
+    // use 0 as the default request id, when an ID is not required.
+    let request_id: usize = 0;
+    let rpc_response: RPCResponse = RPCResponse::Message(data);
+    let rpc_event: RPCEvent =
+        RPCEvent::Response(request_id, RPCErrorResponse::Success(rpc_response));
+    let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
+    let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
+    network_send
+        .try_send(NetworkMessage::RPC(
+            peer_id,
+            rpc_event,
+        ))
+        .unwrap_or_else(|_| {
+            warn!(
+                log,
+                "Could not send RPC message to the network service"
+            )
+        });
+}
+
+/// Types of messages that the network service can receive.
 #[derive(Debug)]
 pub enum NetworkMessage {
-    /// Send a message to libp2p Network.
-    //TODO: Define typing for messages across the wire
-    Send(PeerId, OutgoingMessage),
-    /// Publish a message to pubsub mechanism.
+    /// Send an RPC message to the libp2p service.
+    RPC(PeerId, RPCEvent),
+    /// Publish a list of messages to the gossipsub protocol.
     Publish {
         topics: Vec<GossipTopic>,
         message: Vec<u8>,
     },
-}
-
-/// Type of outgoing messages that can be sent through the network Network.
-#[derive(Debug)]
-pub enum OutgoingMessage {
-    /// Send an RPC request/response.
-    RPC(RPCEvent),
+    /// Propagate a received gossipsub message.
+    Propagate {
+        propagation_source: PeerId,
+        message_id: MessageId,
+    },
+    /// Disconnect and bans a peer id.
+    Disconnect { peer_id: PeerId },
 }

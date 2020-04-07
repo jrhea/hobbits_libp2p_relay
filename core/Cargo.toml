@@ -31,6 +31,7 @@ fnv = "1.0.6"
 unsigned-varint = "0.2.3"
 bytes = "0.4.12"
 env_logger = "0.6.0"
+rand = "0.7.2"
 
 [features]
 default = []

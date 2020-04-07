@@ -1,14 +1,20 @@
-use crate::network::Network;
+use crate::{network, network::NetworkService, network::NetworkMessage};
+use libp2p_wrapper::NetworkGlobals;
 use slog::{debug, info, o, warn, Drain};
 use tokio::runtime::Runtime;
+use tokio::sync::{mpsc, oneshot};
 use cast::i16;
 use env_logger::Env;
+use std::sync::Arc;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 
 struct Context {
     runtime: Runtime,
-    network_service: Network,
+    network_globals:  Arc<NetworkGlobals>,
+    network_send: mpsc::UnboundedSender<NetworkMessage>,
+    network_exit: oneshot::Sender<()>,
+    log: slog::Logger,
 }
 
 static mut CONTEXT: Vec<Context> = Vec::new();
@@ -95,18 +101,20 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
-    let network_service = Network::new(
+    let (network_globals, network_send, network_exit) = NetworkService::new(
         args_vec,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,
         receive_rpc,
         log.clone(),
-    )
-    .unwrap();
+    ).unwrap();
     CONTEXT.push(Context {
         runtime,
-        network_service,
+        network_globals,
+        network_send,
+        network_exit,
+        log: log.clone(),
     });
 }
 
@@ -121,7 +129,7 @@ pub unsafe extern "C" fn send_gossip(
         std::str::from_utf8_unchecked(std::slice::from_raw_parts(topic_c_uchar, topic_length))
             .to_string();
     let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-    CONTEXT[0].network_service.gossip(topic, data);
+    network::gossip(CONTEXT[0].network_send.clone(),topic, data, CONTEXT[0].log.clone());
 }
 
 #[no_mangle]
@@ -142,7 +150,7 @@ pub unsafe extern "C" fn send_rpc_request(
         std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
             .to_string();
     let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-    CONTEXT[0].network_service.rpc_request(method, peer, data);
+    network::rpc_request(CONTEXT[0].network_send.clone(),method, peer, data,CONTEXT[0].log.clone());
 }
 
 #[no_mangle]
@@ -163,5 +171,5 @@ pub unsafe extern "C" fn send_rpc_response(
         std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
             .to_string();
     let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
-    CONTEXT[0].network_service.rpc_response(method, peer, data);
+    network::rpc_response(CONTEXT[0].network_send.clone(),method, peer, data, CONTEXT[0].log.clone());
 }

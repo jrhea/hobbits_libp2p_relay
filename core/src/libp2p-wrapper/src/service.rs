@@ -57,7 +57,7 @@ impl Service {
         config: &NetworkConfig,
         enr_fork_id: Vec<u8>,
         log: slog::Logger,
-    ) -> error::Result<Self> {
+    ) -> error::Result<(Arc<NetworkGlobals>, Self)> {
         trace!(log, "Libp2p Service starting");
 
         let local_keypair = if let Some(hex_bytes) = &config.secret_key_hex {
@@ -80,7 +80,7 @@ impl Service {
         let mut swarm = {
             // Set up the transport - tcp/ws with noise/secio and mplex/yamux
             let transport = build_transport(local_keypair.clone());
-            // Lighthouse network behaviour
+            // Mothra network behaviour
             let behaviour = Behaviour::new(
                 &local_keypair,
                 config,
@@ -174,7 +174,7 @@ impl Service {
             log,
         };
 
-        Ok(service)
+        Ok((network_globals, service))
     }
 
     /// Adds a peer to be banned for a period of time, specified by a timeout.

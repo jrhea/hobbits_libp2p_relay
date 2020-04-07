@@ -1,8 +1,11 @@
 use std::{thread, time};
 use tokio::runtime::Runtime;
+use tokio::sync::{mpsc, oneshot};
+use std::sync::Arc;
 use slog::{debug, info, o, warn, Drain};
 use env_logger::{Env};
-use mothra::network::Network;
+use mothra::{network, network::NetworkService, network::NetworkMessage, NetworkGlobals};
+
 
 
 fn main() {
@@ -16,22 +19,22 @@ fn main() {
     let drain = slog_term::CompactFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
     let slog = slog::Logger::root(drain, o!());
-    let network_logger = slog.new(o!("Network" => "Network"));
-    let mut network = Network::new(
+    let network_logger = slog.new(o!("Example" => "Network"));
+    let (network_globals, network_send, network_exit) = NetworkService::new(
             args,
             &executor,
             on_discovered_peer,
             on_receive_gossip,
             on_receive_rpc,
-            network_logger,
+            network_logger.clone(),
     ).unwrap();
 
     let dur = time::Duration::from_secs(5);
     loop {
+        thread::sleep(dur);
         let topic = "/eth2/beacon_block/ssz".to_string();
         let data = "Hello from Rust".as_bytes().to_vec();
-        network.gossip(topic, data);
-        thread::sleep(dur);
+        network::gossip(network_send.clone(),topic, data,network_logger.clone());
     }
 }
 

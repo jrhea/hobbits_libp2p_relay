@@ -7,14 +7,13 @@ edition = "2018"
 [dependencies]
 hex = "0.3"
 libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "4e3003d5283040fee10da1299252dd060a838d97" }
-# eth2_ssz_types = { git = "https://github.com/SigP/lighthouse", rev = "d7e29382967c16a7a4ce73d1672867523287402b", package = "eth2_ssz_types" }
-eth2_ssz_types = { path =  "../../../../lighthouse/eth2/utils/ssz_types" }
-types = { path =  "../../../../lighthouse/eth2/types" }
+ssz_types = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "eth2_ssz_types" }
+types = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "types" }
 clap = "2.32.0"
 serde = "1.0.102"
 serde_derive = "1.0.102"
-eth2_ssz = { path =  "../../../../lighthouse/eth2/utils/ssz" }
-eth2_ssz_derive = { path =  "../../../../lighthouse/eth2/utils/ssz_derive" }
+ssz = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "eth2_ssz" }
+ssz_derive = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "eth2_ssz_derive" }
 slog = { version = "2.5.2", features = ["max_level_trace"] }
 tokio = "0.1.22"
 tokio-io = "0.1.12"

@@ -80,12 +80,12 @@ pub unsafe extern "C" fn register_handlers(
 
 #[no_mangle]
 pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
-    let mut args_vec = Vec::<String>::new();
+    let mut args = Vec::<String>::new();
     for idx in 0..length {
         let args_cstr = CStr::from_ptr(*args_c_char.offset(idx));
         match args_cstr.to_str() {
             Ok(s) => {
-                args_vec.push(s.to_string());
+                args.push(s.to_string());
             }
             Err(_) => (),
         }
@@ -94,7 +94,11 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
     let (network_globals, network_send, network_exit, log) = NetworkService::new(
-        args_vec,
+        None,
+        None,
+        None,
+        None,
+        args,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,

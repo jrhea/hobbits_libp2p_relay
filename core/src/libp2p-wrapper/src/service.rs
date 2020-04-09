@@ -53,7 +53,7 @@ pub struct Service {
 
 impl Service {
     pub fn new(
-        config: &NetworkConfig,
+        config: &mut NetworkConfig,
         enr_fork_id: EnrForkId,
         log: slog::Logger,
     ) -> error::Result<(Arc<NetworkGlobals>, Self)> {

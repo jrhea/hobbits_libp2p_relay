@@ -9,7 +9,7 @@ libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "4e3003d5283040fe
 types = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "types" }
 ssz = { git = "https://github.com/jrhea/lighthouse", rev = "a91881251d6ebdd2f1d216aed036168456d5f89c", package = "eth2_ssz" }
 hex = "0.3"
-clap = "2.32.0"
+clap = "2.33.0"
 serde = "1.0.102"
 serde_derive = "1.0.102"
 slog = { version = "2.5.2", features = ["max_level_trace"] }

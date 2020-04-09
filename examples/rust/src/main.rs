@@ -1,3 +1,6 @@
+extern crate target_info;
+
+use target_info::Target;
 use std::{thread, time};
 use tokio::runtime::Runtime;
 use slog::{debug, info, o, warn, Drain};
@@ -11,6 +14,10 @@ fn main() {
         .unwrap();
     let executor = runtime.executor();
     let (network_globals, network_send, network_exit, network_logger) = NetworkService::new(
+            Some("example".into()),
+            Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
+            Some(format!("{}-{}", Target::arch(), Target::os())),
+            Some("example/libp2p".into()),
             args,
             &executor,
             on_discovered_peer,

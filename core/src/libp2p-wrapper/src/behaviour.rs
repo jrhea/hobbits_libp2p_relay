@@ -1,7 +1,6 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
 use crate::{error, Enr, EnrForkId, SubnetId, NetworkConfig, NetworkGlobals, TopicHash, GossipTopic};
-use crate::version;
 use libp2p::{
     core::identity::Keypair,
     discv5::Discv5Event,
@@ -57,7 +56,7 @@ pub struct Behaviour<TSubstream: AsyncRead + AsyncWrite> {
 impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
     pub fn new(
         local_key: &Keypair,
-        net_conf: &NetworkConfig,
+        config: &mut NetworkConfig,
         network_globals: Arc<NetworkGlobals>,
         enr_fork_id: EnrForkId,
         log: &slog::Logger,
@@ -66,17 +65,17 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         let behaviour_log = log.new(o!());
 
         let identify = Identify::new(
-            "mothra/libp2p".into(),
-            version::version(),
+            config.protocol_version.clone(),
+            config.agent_version(),
             local_key.public(),
         );
 
         Ok(Behaviour {
             rpc: RPC::new(log),
-            gossipsub: Gossipsub::new(local_peer_id, net_conf.gs_config.clone()),
+            gossipsub: Gossipsub::new(local_peer_id, config.gs_config.clone()),
             discovery: Discovery::new(
                 local_key,
-                net_conf,
+                config,
                 enr_fork_id.clone(),
                 network_globals.clone(),
                 log,

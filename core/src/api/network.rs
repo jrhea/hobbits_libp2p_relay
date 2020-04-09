@@ -45,6 +45,10 @@ pub struct NetworkService {
 
 impl NetworkService {
     pub fn new(
+        name: Option<String>, 
+        client_version: Option<String>,
+        platform: Option<String>, 
+        protocol_version: Option<String>,
         args: Vec<String>,
         executor: &TaskExecutor,
         discovered_peer: DiscoveredPeerType,
@@ -57,9 +61,8 @@ impl NetworkService {
         slog::Logger,
     )> {
         // build NetworkConfig from args
-        let arg_matches = NetworkConfig::matches(args);
         let mut config = NetworkConfig::new();
-        config.apply_cli_args(&arg_matches).unwrap();
+        config.apply_args(name, client_version, platform, protocol_version, args).unwrap();
 
         // configure logging
         env_logger::Builder::from_env(Env::default()).init();
@@ -87,7 +90,7 @@ impl NetworkService {
         let enr_fork_id = [0u8; 32].to_vec();
 
         // launch libp2p Network
-        let (network_globals, libp2p) = LibP2PService::new(&config, enr_fork_id, log.clone())?;
+        let (network_globals, libp2p) = LibP2PService::new(&mut config, enr_fork_id, log.clone())?;
 
         //TODO
         // for enr in load_dht::<T::Store, T::EthSpec>(store.clone()) {

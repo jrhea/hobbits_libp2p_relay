@@ -4,7 +4,6 @@ mod discovery;
 pub mod rpc;
 mod service;
 pub mod types;
-mod version;
 
 pub use crate::types::{error, NetworkGlobals, PeerInfo, GossipTopic, Enr, EnrBitfield, EnrForkId, SubnetId};
 pub use config::Config as NetworkConfig;

@@ -1,6 +1,6 @@
 use crate::{network, network::NetworkMessage, network::NetworkService};
-use libp2p_wrapper::NetworkGlobals;
 use cast::i16;
+use libp2p_wrapper::NetworkGlobals;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;

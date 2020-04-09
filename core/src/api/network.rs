@@ -1,8 +1,8 @@
 use super::error;
 use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{
-    Enr, GossipTopic, NetworkConfig, NetworkGlobals, RPCErrorResponse, RPCEvent, RPCRequest,
-    RPCResponse, Libp2pEvent, MessageId, PeerId, Swarm
+    Enr, GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId,
+    RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
 
 use env_logger::Env;

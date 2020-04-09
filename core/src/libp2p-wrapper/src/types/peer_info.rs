@@ -2,7 +2,7 @@
 use crate::{EnrBitfield, SubnetId};
 
 /// Information about a given connected peer.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct PeerInfo {
     /// The current syncing state of the peer. The state may be determined after it's initial
     /// connection.

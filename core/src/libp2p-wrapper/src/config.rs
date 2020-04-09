@@ -94,7 +94,7 @@ impl Default for Config {
     /// Generate a default network configuration.
     fn default() -> Self {
         let client_version = format!("v{}", env!("CARGO_PKG_VERSION"));
-        let protocol_version = format!("{}", DEFAULT_PROTOCOL_VERSION);
+        let protocol_version = DEFAULT_PROTOCOL_VERSION.to_string();
         let platform = format!("{}-{}", Target::arch(), Target::os());
         let mut network_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
         network_dir.push(format!(".{}",DEFAULT_NAME));
@@ -174,13 +174,13 @@ impl Config {
     pub fn apply_args(&mut self, name: Option<String>, client_version: Option<String>, platform: Option<String>, protocol_version: Option<String>, cli_args: Vec<String>) -> Result<(), String> {
     
         // update self.name if name is not None
-        name.clone().and_then(|_|Some(self.name = name.unwrap()));
+        if let Some(x) = name { self.name = x; }
         // update self.client_version if client_version is not None
-        client_version.clone().and_then(|_|Some(self.client_version = client_version.unwrap()));
+        if let Some(x) = client_version { self.client_version = x; }
         // update self.platform if platform is not None
-        platform.clone().and_then(|_|Some(self.platform = platform.unwrap()));
+        if let Some(x) = platform { self.platform = x; }
         // update self.protocol_version if protocol_version is not None
-        protocol_version.clone().and_then(|_|Some(self.protocol_version = protocol_version.unwrap()));
+        if let Some(x) = protocol_version { self.protocol_version = x; }
 
           // collect cli argument matches
         let args = matches(self, cli_args);

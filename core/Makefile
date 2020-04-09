@@ -9,5 +9,11 @@ ffi-bindings:
 	cargo build --release --features "ffi" --target-dir=$(OUT_DIR)
 	cp $(OUT_DIR)/release/libmothra.$(EXT) $(OUT_DIR)/
 
+rust-fmt:
+	cargo fmt
+
+rust-clippy:
+	cargo clippy
+
 clean:
 	cargo clean

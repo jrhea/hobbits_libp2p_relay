@@ -10,6 +10,8 @@ all: rust c dotnet java
 
 mash: clean rust c dotnet java
 
+style: rust-fmt rust-clippy
+
 rust: rust-examples
 
 c: c-examples
@@ -62,6 +64,16 @@ java-bindings: ffi-bindings
 	@echo ""
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@
+
+rust-fmt:
+	@echo ""
+	@echo Running cargo fmt
+	cd $(CORE_DIR) && make $@
+
+rust-clippy:
+	@echo ""
+	@echo Running cargo clippy
+	cd $(CORE_DIR) && make $@
 
 clean:
 	rm -rf $(OUT_DIR)/*

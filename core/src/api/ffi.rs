@@ -83,11 +83,8 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
     let mut args = Vec::<String>::new();
     for idx in 0..length {
         let args_cstr = CStr::from_ptr(*args_c_char.offset(idx));
-        match args_cstr.to_str() {
-            Ok(s) => {
-                args.push(s.to_string());
-            }
-            Err(_) => (),
+        if let Ok(s) = args_cstr.to_str() {
+            args.push(s.to_string());
         }
     }
     let runtime = Runtime::new()

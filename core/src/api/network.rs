@@ -1,8 +1,8 @@
 use super::error;
 use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{
-    Enr, GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId,
-    RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse, Swarm,
+    GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId, RPCErrorResponse,
+    RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
 
 use env_logger::Env;
@@ -45,9 +45,9 @@ pub struct NetworkService {
 
 impl NetworkService {
     pub fn new(
-        name: Option<String>, 
+        name: Option<String>,
         client_version: Option<String>,
-        platform: Option<String>, 
+        platform: Option<String>,
         protocol_version: Option<String>,
         args: Vec<String>,
         executor: &TaskExecutor,
@@ -62,7 +62,9 @@ impl NetworkService {
     )> {
         // build NetworkConfig from args
         let mut config = NetworkConfig::new();
-        config.apply_args(name, client_version, platform, protocol_version, args).unwrap();
+        config
+            .apply_args(name, client_version, platform, protocol_version, args)
+            .unwrap();
 
         // configure logging
         env_logger::Builder::from_env(Env::default()).init();

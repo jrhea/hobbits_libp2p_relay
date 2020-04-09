@@ -1,10 +1,9 @@
-use super::error;
-use crate::{Enr, version};
-use clap::{App, AppSettings, Arg, ArgMatches};
+use crate::{Enr, version, error};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
 use serde_derive::{Deserialize, Serialize};
+use clap::{App, AppSettings, Arg, ArgMatches};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::time::Duration;

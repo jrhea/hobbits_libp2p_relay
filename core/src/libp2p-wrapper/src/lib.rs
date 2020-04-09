@@ -6,13 +6,9 @@ mod service;
 pub mod types;
 mod version;
 
-// shift this type into discv5
-pub type Enr = libp2p::discv5::enr::Enr<libp2p::discv5::enr::CombinedKey>;
-
-pub use crate::types::{error, NetworkGlobals, PeerInfo, GossipTopic};
+pub use crate::types::{error, NetworkGlobals, PeerInfo, GossipTopic, Enr, EnrBitfield, EnrForkId, SubnetId};
 pub use config::Config as NetworkConfig;
 pub use libp2p::gossipsub::{MessageId, Topic, TopicHash};
-pub use libp2p::{multiaddr, Multiaddr};
-pub use libp2p::{PeerId, Swarm};
+pub use libp2p::{PeerId, Swarm, multiaddr, Multiaddr};
 pub use rpc::{RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
 pub use service::{Libp2pEvent, Service};

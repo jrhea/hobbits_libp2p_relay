@@ -1,9 +1,7 @@
 ///! This manages the discovery and management of peers.
 mod enr_helpers;
 
-use crate::types::EnrBitfield;
-use crate::Enr;
-use crate::{error, NetworkConfig, NetworkGlobals, PeerInfo};
+use crate::{error, NetworkConfig, Enr, EnrBitfield, EnrForkId, SubnetId, NetworkGlobals, PeerInfo};
 use enr_helpers::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
 use futures::prelude::*;
 use libp2p::core::{identity::Keypair, ConnectedPoint, Multiaddr, PeerId};
@@ -13,7 +11,6 @@ use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
 use slog::{crit, debug, info, trace, warn};
 use ssz::{Decode, Encode};
-use ssz_types::BitVector;
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -21,7 +18,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::timer::Delay;
-use types::{EnrForkId, EthSpec, MainnetEthSpec, SubnetId};
 
 /// Maximum seconds before searching for extra peers.
 const MAX_TIME_BETWEEN_PEER_SEARCHES: u64 = 120;
@@ -70,7 +66,7 @@ impl<TSubstream> Discovery<TSubstream> {
     pub fn new(
         local_key: &Keypair,
         config: &NetworkConfig,
-        enr_fork_id: Vec<u8>,
+        enr_fork_id: EnrForkId,
         network_globals: Arc<NetworkGlobals>,
         log: &slog::Logger,
     ) -> error::Result<Self> {
@@ -78,7 +74,7 @@ impl<TSubstream> Discovery<TSubstream> {
 
         // checks if current ENR matches that found on disk
         let local_enr =
-            enr_helpers::build_or_load_enr::<MainnetEthSpec>(local_key.clone(), config, enr_fork_id, &log)?;
+            enr_helpers::build_or_load_enr(local_key.clone(), config, enr_fork_id, &log)?;
 
         *network_globals.local_enr.write() = Some(local_enr.clone());
 
@@ -169,16 +165,16 @@ impl<TSubstream> Discovery<TSubstream> {
     }
 
     /// Adds/Removes a subnet from the ENR Bitfield
+    //  TODO: revisit bc it uses ssz 
     pub fn update_enr_bitfield(&mut self, subnet_id: SubnetId, value: bool) -> Result<(), String> {
-        let id = *subnet_id as usize;
+        let id = subnet_id as usize;
 
         let local_enr = self.discovery.local_enr();
         let bitfield_bytes = local_enr
             .get(BITFIELD_ENR_KEY)
             .ok_or_else(|| "ENR bitfield non-existent")?;
 
-        let mut current_bitfield =
-            BitVector::<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>::from_ssz_bytes(bitfield_bytes)
+        let mut current_bitfield = EnrBitfield::from_ssz_bytes(bitfield_bytes)
                 .map_err(|_| "Could not decode local ENR SSZ bitfield")?;
 
         if id >= current_bitfield.len() {
@@ -215,23 +211,12 @@ impl<TSubstream> Discovery<TSubstream> {
 
     /// Updates the `eth2` field of our local ENR.
     pub fn update_eth2_enr(&mut self, enr_fork_id: EnrForkId) {
-        // to avoid having a reference to the spec constant, for the logging we assume
-        // FAR_FUTURE_EPOCH is u64::max_value()
-        let next_fork_epoch_log = if enr_fork_id.next_fork_epoch == u64::max_value() {
-            String::from("No other fork")
-        } else {
-            format!("{:?}", enr_fork_id.next_fork_epoch)
-        };
 
-        info!(self.log, "Updating the ENR fork version";
-            "fork_digest" => format!("{:?}", enr_fork_id.fork_digest),
-            "next_fork_version" => format!("{:?}", enr_fork_id.next_fork_version),
-            "next_fork_epoch" => next_fork_epoch_log,
-        );
+        info!(self.log, "Updating the ENR fork version");
 
         let _ = self
             .discovery
-            .enr_insert(ETH2_ENR_KEY, enr_fork_id.as_ssz_bytes())
+            .enr_insert(ETH2_ENR_KEY, enr_fork_id)
             .map_err(|e| {
                 warn!(
                     self.log,
@@ -264,7 +249,7 @@ impl<TSubstream> Discovery<TSubstream> {
         if peers_on_subnet < TARGET_SUBNET_PEERS {
             let target_peers = TARGET_SUBNET_PEERS - peers_on_subnet;
             debug!(self.log, "Searching for peers for subnet";
-                "subnet_id" => *subnet_id,
+                "subnet_id" => subnet_id,
                 "connected_peers_on_subnet" => peers_on_subnet,
                 "target_subnet_peers" => TARGET_SUBNET_PEERS,
                 "target_peers" => target_peers
@@ -274,7 +259,7 @@ impl<TSubstream> Discovery<TSubstream> {
 
             let subnet_predicate = move |enr: &Enr| {
                 if let Some(bitfield_bytes) = enr.get(BITFIELD_ENR_KEY) {
-                    let bitfield = match BitVector::<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>::from_ssz_bytes(
+                    let bitfield = match EnrBitfield::from_ssz_bytes(
                         bitfield_bytes,
                     ) {
                         Ok(v) => v,
@@ -284,7 +269,7 @@ impl<TSubstream> Discovery<TSubstream> {
                         }
                     };
 
-                    return bitfield.get(*subnet_id as usize).unwrap_or_else(|_| {
+                    return bitfield.get(subnet_id as usize).unwrap_or_else(|_| {
                         debug!(log_clone, "Peer found but not on desired subnet"; "peer_id" => format!("{}", enr.peer_id()));
                         false
                     });
@@ -324,7 +309,7 @@ impl<TSubstream> Discovery<TSubstream> {
         // pick a random NodeId
         let random_node = NodeId::random();
 
-        let enr_fork_id = self.enr_fork_id().to_vec();
+        let enr_fork_id = self.enr_fork_id();
         // predicate for finding nodes with a matching fork
         let eth2_fork_predicate = move |enr: &Enr| enr.get(ETH2_ENR_KEY) == Some(&enr_fork_id);
         let predicate = move |enr: &Enr| eth2_fork_predicate(enr) && enr_predicate(enr);
@@ -336,7 +321,7 @@ impl<TSubstream> Discovery<TSubstream> {
 
     /// Returns our current `eth2` field as SSZ bytes, associated with the local ENR. We only search for peers
     /// that have this field.
-    fn enr_fork_id(&self) -> Vec<u8> {
+    fn enr_fork_id(&self) -> EnrForkId {
         self.local_enr()
             .get(ETH2_ENR_KEY)
             .cloned()
@@ -370,7 +355,7 @@ where
         if let Some(enr) = self.discovery.enr_of_peer(&peer_id) {
             let bitfield = match enr.get(BITFIELD_ENR_KEY) {
                 Some(bitfield_bytes) => {
-                    match EnrBitfield::<MainnetEthSpec>::from_ssz_bytes(bitfield_bytes) {
+                    match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
                         Ok(bitfield) => bitfield,
                         Err(e) => {
                             warn!(self.log, "Peer had invalid ENR bitfield"; 
@@ -457,7 +442,7 @@ where
                             // peers that get discovered during a query but are not contactable or
                             // don't match a predicate can end up here. For debugging purposes we
                             // log these to see if we are unnecessarily dropping discovered peers
-                            if enr.get(ETH2_ENR_KEY) == Some(&self.enr_fork_id().to_vec()) {
+                            if enr.get(ETH2_ENR_KEY) == Some(&self.enr_fork_id()) {
                                 trace!(self.log, "Peer found in process of query"; "peer_id" => format!("{}", enr.peer_id()), "tcp_socket" => enr.tcp_socket());
                             } else {
                                 // this is temporary warning for debugging the DHT

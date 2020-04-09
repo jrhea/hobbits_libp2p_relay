@@ -2,9 +2,7 @@ use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::multiaddr::Protocol;
 use crate::rpc::RPCEvent;
 use crate::types::error;
-use crate::{NetworkConfig, NetworkGlobals, GossipTopic, TopicHash};
-use futures::prelude::*;
-use futures::Stream;
+use crate::{NetworkConfig, NetworkGlobals, GossipTopic, TopicHash, EnrForkId};
 use libp2p::core::{
     identity::Keypair,
     multiaddr::Multiaddr,
@@ -16,6 +14,8 @@ use libp2p::core::{
 };
 use libp2p::gossipsub::MessageId;
 use libp2p::{core, noise, secio, swarm::NetworkBehaviour, PeerId, Swarm, Transport};
+use futures::prelude::*;
+use futures::Stream;
 use slog::{crit, debug, error, info, trace, warn};
 use std::fs::File;
 use std::io::prelude::*;
@@ -54,7 +54,7 @@ pub struct Service {
 impl Service {
     pub fn new(
         config: &NetworkConfig,
-        enr_fork_id: Vec<u8>,
+        enr_fork_id: EnrForkId,
         log: slog::Logger,
     ) -> error::Result<(Arc<NetworkGlobals>, Self)> {
         trace!(log, "Libp2p Service starting");

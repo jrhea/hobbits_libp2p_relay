@@ -3,7 +3,6 @@ use crate::{Enr, GossipTopic, Multiaddr, PeerId, PeerInfo};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU16, Ordering};
-use types::MainnetEthSpec;
 
 pub struct NetworkGlobals {
     /// The current local ENR.
@@ -17,7 +16,7 @@ pub struct NetworkGlobals {
     /// The udp port that the discovery service is listening on
     pub listen_port_udp: AtomicU16,
     /// The collection of currently connected peers.
-    pub connected_peer_set: RwLock<HashMap<PeerId, PeerInfo<MainnetEthSpec>>>,
+    pub connected_peer_set: RwLock<HashMap<PeerId, PeerInfo>>,
     /// The current gossipsub topic subscriptions.
     pub gossipsub_subscriptions: RwLock<HashSet<GossipTopic>>,
 }

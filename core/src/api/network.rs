@@ -1,13 +1,13 @@
 use super::error;
-use env_logger::Env;
-use futures::prelude::*;
-use futures::Stream;
 use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{
     Enr, GossipTopic, NetworkConfig, NetworkGlobals, RPCErrorResponse, RPCEvent, RPCRequest,
-    RPCResponse,
+    RPCResponse, Libp2pEvent, MessageId, PeerId, Swarm
 };
-use libp2p_wrapper::{Libp2pEvent, MessageId, PeerId, Swarm};
+
+use env_logger::Env;
+use futures::prelude::*;
+use futures::Stream;
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

@@ -1,8 +1,7 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
-use crate::{error, Enr, NetworkConfig, NetworkGlobals, TopicHash, GossipTopic};
+use crate::{error, Enr, EnrForkId, SubnetId, NetworkConfig, NetworkGlobals, TopicHash, GossipTopic};
 use crate::version;
-use futures::prelude::*;
 use libp2p::{
     core::identity::Keypair,
     discv5::Discv5Event,
@@ -12,10 +11,11 @@ use libp2p::{
     tokio_io::{AsyncRead, AsyncWrite},
     NetworkBehaviour, PeerId,
 };
+use futures::prelude::*;
 use lru::LruCache;
 use slog::{crit, debug, o, warn};
 use std::sync::Arc;
-use types::{EnrForkId, SubnetId};
+
 
 
 const MAX_IDENTIFY_ADDRESSES: usize = 20;
@@ -48,7 +48,7 @@ pub struct Behaviour<TSubstream: AsyncRead + AsyncWrite> {
     network_globals: Arc<NetworkGlobals>,
     /// Keeps track of the current EnrForkId for upgrading gossipsub topics.
     #[behaviour(ignore)]
-    enr_fork_id: Vec<u8>,
+    enr_fork_id: EnrForkId,
     /// Logger for behaviour actions.
     #[behaviour(ignore)]
     log: slog::Logger,
@@ -59,7 +59,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         local_key: &Keypair,
         net_conf: &NetworkConfig,
         network_globals: Arc<NetworkGlobals>,
-        enr_fork_id: Vec<u8>,
+        enr_fork_id: EnrForkId,
         log: &slog::Logger,
     ) -> error::Result<Self> {
         let local_peer_id = local_key.public().into_peer_id();
@@ -172,6 +172,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
     /// Updates a subnet value to the ENR bitfield.
     ///
     /// The `value` is `true` if a subnet is being added and false otherwise.
+    //TODO: revisit bc update_enr_bitfield requires ssz
     pub fn update_enr_subnet(&mut self, subnet_id: SubnetId, value: bool) {
         if let Err(e) = self.discovery.update_enr_bitfield(subnet_id, value) {
             crit!(self.log, "Could not update ENR bitfield"; "error" => e);
@@ -184,9 +185,9 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
     }
 
     /// Updates the local ENR's "eth2" field with the latest EnrForkId.
-    pub fn update_fork_version(&mut self, enr_fork_id: Vec<u8>) {
-        //TODO fix this
-        //self.discovery.update_eth2_enr(enr_fork_id.clone());
+    //TODO: fix the fact that the fork digest isnt updated
+    pub fn update_fork_version(&mut self, enr_fork_id: EnrForkId) {
+        self.discovery.update_eth2_enr(enr_fork_id.clone());
 
         // unsubscribe from all gossip topics and re-subscribe to their new fork counterparts
         let subscribed_topics = self
@@ -205,6 +206,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         // re-subscribe modifying the fork version
         for topic in subscribed_topics {
            // *topic.digest() = enr_fork_id.fork_digest;
+           //TODO: fix this
             self.subscribe(topic);
         }
 

@@ -1,17 +1,14 @@
 use super::ENR_FILENAME;
-use crate::Enr;
-use crate::NetworkConfig;
+use crate::{NetworkConfig, Enr, EnrBitfield, EnrForkId};
 use libp2p::core::identity::Keypair;
 use libp2p::discv5::enr::{CombinedKey, EnrBuilder};
 use slog::{debug, warn};
 use ssz::Encode;
-use ssz_types::BitVector;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
-use types::{EnrForkId, EthSpec};
 
 /// The ENR field specifying the fork id.
 pub const ETH2_ENR_KEY: &str = "eth2";
@@ -23,10 +20,10 @@ pub const BITFIELD_ENR_KEY: &str = "attnets";
 ///
 /// If an ENR exists, with the same NodeId, this function checks to see if the loaded ENR from
 /// disk is suitable to use, otherwise we increment our newly generated ENR's sequence number.
-pub fn build_or_load_enr<T: EthSpec>(
+pub fn build_or_load_enr(
     local_key: Keypair,
     config: &NetworkConfig,
-    enr_fork_id: Vec<u8>,
+    enr_fork_id: EnrForkId,
     log: &slog::Logger,
 ) -> Result<Enr, String> {
     // Build the local ENR.
@@ -36,7 +33,7 @@ pub fn build_or_load_enr<T: EthSpec>(
         .try_into()
         .map_err(|_| "Invalid key type for ENR records")?;
 
-    let mut local_enr = build_enr::<T>(&enr_key, config, enr_fork_id)?;
+    let mut local_enr = build_enr(&enr_key, config, enr_fork_id)?;
 
     let enr_f = config.network_dir.join(ENR_FILENAME);
     if let Ok(mut enr_file) = File::open(enr_f.clone()) {
@@ -75,11 +72,11 @@ pub fn build_or_load_enr<T: EthSpec>(
     Ok(local_enr)
 }
 
-/// Builds a lighthouse ENR given a `NetworkConfig`.
-fn build_enr<T: EthSpec>(
+/// Builds an ENR given a `NetworkConfig`.
+fn build_enr(
     enr_key: &CombinedKey,
     config: &NetworkConfig,
-    enr_fork_id: Vec<u8>,
+    enr_fork_id: EnrForkId,
 ) -> Result<Enr, String> {
     let mut builder = EnrBuilder::new("v4");
     if let Some(enr_address) = config.enr_address {
@@ -100,10 +97,10 @@ fn build_enr<T: EthSpec>(
     builder.add_value(ETH2_ENR_KEY.into(), enr_fork_id);
 
     // set the "attnets" field on our ENR
-    let bitfield = BitVector::<T::SubnetBitfieldLength>::new();
-
+     // TODO: fix this
+    let bitfield = EnrBitfield::new();
     builder.add_value(BITFIELD_ENR_KEY.into(), bitfield.as_ssz_bytes());
-
+   
     builder
         .tcp(config.libp2p_port)
         .build(enr_key)

@@ -47,7 +47,6 @@ impl NetworkService {
     pub fn new(
         name: Option<String>,
         client_version: Option<String>,
-        platform: Option<String>,
         protocol_version: Option<String>,
         args: Vec<String>,
         executor: &TaskExecutor,
@@ -63,7 +62,7 @@ impl NetworkService {
         // build NetworkConfig from args
         let mut config = NetworkConfig::new();
         config
-            .apply_args(name, client_version, platform, protocol_version, args)
+            .apply_args(name, client_version, protocol_version, args)
             .unwrap();
 
         // configure logging

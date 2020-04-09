@@ -94,7 +94,6 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
         None,
         None,
         None,
-        None,
         args,
         &runtime.executor(),
         discovered_peer,

@@ -171,14 +171,12 @@ impl Config {
         )
     }
 
-    pub fn apply_args(&mut self, name: Option<String>, client_version: Option<String>, platform: Option<String>, protocol_version: Option<String>, cli_args: Vec<String>) -> Result<(), String> {
+    pub fn apply_args(&mut self, name: Option<String>, client_version: Option<String>, protocol_version: Option<String>, cli_args: Vec<String>) -> Result<(), String> {
     
         // update self.name if name is not None
         if let Some(x) = name { self.name = x; }
         // update self.client_version if client_version is not None
         if let Some(x) = client_version { self.client_version = x; }
-        // update self.platform if platform is not None
-        if let Some(x) = platform { self.platform = x; }
         // update self.protocol_version if protocol_version is not None
         if let Some(x) = protocol_version { self.protocol_version = x; }
 

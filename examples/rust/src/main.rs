@@ -14,10 +14,9 @@ fn main() {
         .unwrap();
     let executor = runtime.executor();
     let (network_globals, network_send, network_exit, network_logger) = NetworkService::new(
-            Some("example".into()),
+            Some("rust-example".into()),
             Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
-            Some(format!("{}-{}", Target::arch(), Target::os())),
-            Some("example/libp2p".into()),
+            Some("rust-example/libp2p".into()),
             args,
             &executor,
             on_discovered_peer,

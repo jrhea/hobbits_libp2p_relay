@@ -13,7 +13,7 @@ mash: clean rust c dotnet java
 lib:
 	@echo ""
 	@echo Building Mothra library
-	cargo build --release --target-dir=$(OUT_DIR)
+	cargo build $(BUILD_MODE) --target-dir=$(OUT_DIR)
 
 rust: rust-examples
 

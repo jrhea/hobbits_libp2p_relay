@@ -3,7 +3,7 @@ SHELL := /bin/sh
 include ../../config.mk
 
 rust-examples:
-	cargo build --release --target-dir=$(OUT_DIR)
+	cargo build $(BUILD_MODE) --target-dir=$(OUT_DIR)
 	ln -sf $(OUT_DIR)/release/rust-example $(OUT_DIR)/
 	
 

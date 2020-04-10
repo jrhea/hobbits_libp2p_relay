@@ -106,11 +106,21 @@ Building is easy.  First, clone the repo:
 
 #### Build for Rust
 
-Next cd into the project's root dir and build:
+Next cd into the project's root dir
+
+Debug:
 
 ```sh
 
 > make rust
+
+```
+
+Release:
+
+```sh
+
+> make rls=1 rust
 
 ```
 
@@ -141,6 +151,19 @@ Next cd into the project's root dir and build:
 ```sh
 
 > make dotnet
+
+```
+
+#### Debuggig the Makefile
+
+Use the `debug-{VAR_NAME}` option to inspect the value of variables set in `config.mk`.  
+
+For example, to inspect the value of the `OS_LFLAGS` var:
+
+```sh
+
+> make debug-OS_LFLAGS
+OS_LFLAGS=-mmacosx-version-min=10.15.4 -framework CoreFoundation -framework Security
 
 ```
 

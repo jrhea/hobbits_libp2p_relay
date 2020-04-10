@@ -1,8 +1,5 @@
+use mothra::{ gossip, rpc_request, rpc_response, NetworkMessage, Mothra, NetworkGlobals};
 use cast::i16;
-use mothra::{
-    network::gossip, network::rpc_request, network::rpc_response, network::NetworkMessage,
-    network::NetworkService, NetworkGlobals,
-};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
@@ -135,7 +132,7 @@ pub unsafe extern "C" fn network_start(
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
-    let (network_globals, network_send, network_exit, log) = NetworkService::new(
+    let (network_globals, network_send, network_exit, log) = Mothra::new(
         name,
         client_version,
         protocol_version,

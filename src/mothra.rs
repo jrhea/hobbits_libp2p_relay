@@ -1,10 +1,9 @@
-use super::error;
+use crate::error;
 use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{
     GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId, RPCErrorResponse,
     RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
-
 use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
@@ -23,7 +22,7 @@ type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
 type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 /// Handles communication between calling code and the `libp2p_p2p` service.
-pub struct NetworkService {
+pub struct Mothra {
     /// The underlying libp2p service that drives all the network interactions.
     libp2p: LibP2PService,
     /// The network receiver channel
@@ -43,7 +42,7 @@ pub struct NetworkService {
     log: slog::Logger,
 }
 
-impl NetworkService {
+impl Mothra {
     pub fn new(
         name: Option<String>,
         client_version: Option<String>,
@@ -103,7 +102,7 @@ impl NetworkService {
         let initial_delay = Delay::new(Instant::now() + Duration::from_secs(1));
 
         // create & spawn the network service
-        let network_service = NetworkService {
+        let network_service = Mothra {
             libp2p,
             network_recv,
             network_send: network_send.clone(),
@@ -116,14 +115,14 @@ impl NetworkService {
             log: log.clone(),
         };
 
-        let network_exit = spawn_service(network_service, &executor)?;
+        let network_exit = spawn_mothra(network_service, &executor)?;
 
         Ok((network_globals, network_send, network_exit, log.clone()))
     }
 }
 
-fn spawn_service(
-    mut service: NetworkService,
+fn spawn_mothra(
+    mut mothra: Mothra,
     executor: &TaskExecutor,
 ) -> error::Result<tokio::sync::oneshot::Sender<()>> {
     let (network_exit, mut exit_rx) = tokio::sync::oneshot::channel();
@@ -132,13 +131,13 @@ fn spawn_service(
     executor.spawn(
     futures::future::poll_fn(move || -> Result<_, ()> {
 
-        let log = &service.log;
+        let log = &mothra.log;
 
         // handles any logic which requires an initial delay
-        if !service.initial_delay.is_elapsed() {
-            if let Ok(Async::Ready(_)) = service.initial_delay.poll() {
-                        let multi_addrs = Swarm::listeners(&service.libp2p.swarm).cloned().collect();
-                        *service.network_globals.listen_multiaddrs.write() = multi_addrs;
+        if !mothra.initial_delay.is_elapsed() {
+            if let Ok(Async::Ready(_)) = mothra.initial_delay.poll() {
+                        let multi_addrs = Swarm::listeners(&mothra.libp2p.swarm).cloned().collect();
+                        *mothra.network_globals.listen_multiaddrs.write() = multi_addrs;
             }
         }
 
@@ -170,11 +169,11 @@ fn spawn_service(
         // processes the network channel before processing the libp2p swarm
         loop {
             // poll the network channel
-            match service.network_recv.poll() {
+            match mothra.network_recv.poll() {
                 Ok(Async::Ready(Some(message))) => match message {
                     NetworkMessage::RPC(peer_id, rpc_event) => {
                         trace!(log, "Sending RPC"; "rpc" => format!("{:?}", rpc_event));
-                        service.libp2p.swarm.send_rpc(peer_id, rpc_event);
+                        mothra.libp2p.swarm.send_rpc(peer_id, rpc_event);
                     }
                     NetworkMessage::Propagate {
                         propagation_source,
@@ -183,7 +182,7 @@ fn spawn_service(
                         // TODO: Remove this for mainnet
                         // randomly prevents propagation
                         let mut should_send = true;
-                        if let Some(percentage) = service.propagation_percentage {
+                        if let Some(percentage) = mothra.propagation_percentage {
                             // not exact percentage but close enough
                             let rand = rand::random::<u8>() % 100;
                             if rand > percentage {
@@ -198,7 +197,7 @@ fn spawn_service(
                             "propagation_peer" => format!("{:?}", propagation_source),
                             "message_id" => message_id.to_string(),
                             );
-                            service.libp2p
+                            mothra.libp2p
                                 .swarm
                                 .propagate_message(&propagation_source, message_id);
                         }
@@ -207,7 +206,7 @@ fn spawn_service(
                         // TODO: Remove this for mainnet
                         // randomly prevents propagation
                         let mut should_send = true;
-                        if let Some(percentage) = service.propagation_percentage {
+                        if let Some(percentage) = mothra.propagation_percentage {
                             // not exact percentage but close enough
                             let rand = rand::random::<u8>() % 100;
                             if rand > percentage {
@@ -219,11 +218,11 @@ fn spawn_service(
                             info!(log, "Random filter did not publish messages");
                         } else {
                             debug!(log, "Sending pubsub message"; "topics" => format!("{:?}",topics));
-                            service.libp2p.swarm.publish(topics, message);
+                            mothra.libp2p.swarm.publish(topics, message);
                         }
                     }
                     NetworkMessage::Disconnect { peer_id } => {
-                        service.libp2p.disconnect_and_ban_peer(
+                        mothra.libp2p.disconnect_and_ban_peer(
                             peer_id,
                             std::time::Duration::from_secs(BAN_PEER_TIMEOUT),
                         );
@@ -244,7 +243,7 @@ fn spawn_service(
         let mut peers_to_ban = Vec::<PeerId>::new();
         // poll the swarm
         loop {
-            match service.libp2p.poll() {
+            match mothra.libp2p.poll() {
                 Ok(Async::Ready(Some(event))) => match event {
                     Libp2pEvent::RPC(peer_id, rpc_event) => {
                         debug!(log, "RPC Event: {:?}", rpc_event);
@@ -252,7 +251,7 @@ fn spawn_service(
                             RPCEvent::Request(_, request) => match request {
                                 RPCRequest::Message(data) => {
                                     debug!(log, "RPCRequest message received: {:?}", data);
-                                    (service.receive_rpc)(
+                                    (mothra.receive_rpc)(
                                         "".to_string(),
                                         0,
                                         peer_id.to_string(),
@@ -273,7 +272,7 @@ fn spawn_service(
                                 RPCErrorResponse::Success(response) => match response {
                                     RPCResponse::Message(data) => {
                                         debug!(log, "RPCResponse message received: {:?}", data);
-                                        (service.receive_rpc)(
+                                        (mothra.receive_rpc)(
                                             "".to_string(),
                                             1,
                                             peer_id.to_string(),
@@ -289,7 +288,7 @@ fn spawn_service(
                     }
                     Libp2pEvent::PeerDialed(peer_id) => {
                         debug!(log, "Peer Dialed: {:?}", peer_id);
-                        (service.discovered_peer)(peer_id.to_string());
+                        (mothra.discovered_peer)(peer_id.to_string());
                     }
                     Libp2pEvent::PeerDisconnected(peer_id) => {
                         debug!(log, "Peer Disconnected: {:?}", peer_id);
@@ -301,7 +300,7 @@ fn spawn_service(
                         message,
                     } => {
                         debug!(log, "Gossip message received: {:?}", message);
-                        (service.receive_gossip)(topics[0].to_string(), message.clone());
+                        (mothra.receive_gossip)(topics[0].to_string(), message.clone());
                     }
                     Libp2pEvent::PeerSubscribed(peer_id, topic) => {
                         debug!(log, "Peer {:?} subscribed to topic: {:?}", peer_id, topic);
@@ -315,7 +314,7 @@ fn spawn_service(
 
         // ban and disconnect any peers that sent Goodbye requests
         while let Some(peer_id) = peers_to_ban.pop() {
-            service.libp2p.disconnect_and_ban_peer(
+            mothra.libp2p.disconnect_and_ban_peer(
                 peer_id.clone(),
                 std::time::Duration::from_secs(BAN_PEER_TIMEOUT),
             );

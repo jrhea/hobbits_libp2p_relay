@@ -11,5 +11,5 @@ rust-lint:
 	cargo clippy
 
 clean:
-	unlink $(OUT_DIR)/release/libmothra.$(EXT)
+	rm -f $(OUT_DIR)/libmothra.$(EXT)
 	cargo clean --target-dir=$(OUT_DIR)

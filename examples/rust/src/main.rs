@@ -4,7 +4,7 @@ use target_info::Target;
 use std::{thread, time};
 use tokio::runtime::Runtime;
 use slog::{debug, info, o, warn, Drain};
-use mothra::{network, network::NetworkService};
+use mothra::{Mothra, gossip};
 
 fn main() {
     let start = time::Instant::now();
@@ -13,7 +13,7 @@ fn main() {
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
     let executor = runtime.executor();
-    let (network_globals, network_send, network_exit, network_logger) = NetworkService::new(
+    let (network_globals, network_send, network_exit, network_logger) = Mothra::new(
             Some("rust-example".into()),
             Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
             Some("rust-example/libp2p".into()),
@@ -29,7 +29,7 @@ fn main() {
         thread::sleep(dur);
         let topic = "/eth2/beacon_block/ssz".to_string();
         let data = format!("Hello from Rust.  Elapsed time: {:?}",start.elapsed()).as_bytes().to_vec();
-        network::gossip(network_send.clone(),topic, data,network_logger.clone());
+        gossip(network_send.clone(),topic, data,network_logger.clone());
     }
 }
 

@@ -11,7 +11,6 @@ LFLAGS = -shared
 .PHONY : java-bindings java-bindings-build clean
 
 java-bindings-build: Mothra.class
-
 	$(CC) $(JBIND_DIR)/mothra-jni.c $(INCLUDES) $(JAVA_INCLUDES) -L$(OUT_DIR) -lmothra $(JAVA_LIBS) $(CFLAGS) $(LFLAGS) -o $(OUT_DIR)/libmothra-jni.$(EXT)
 
 ifeq ($(OS), darwin)

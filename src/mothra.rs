@@ -299,7 +299,7 @@ fn spawn_mothra(
                         topics,
                         message,
                     } => {
-                        debug!(log, "Gossip message received: {:?}", message);
+                        debug!(log, "Gossip message received from: {:?}", source);
                         (mothra.receive_gossip)(topics[0].to_string(), message.clone());
                     }
                     Libp2pEvent::PeerSubscribed(peer_id, topic) => {

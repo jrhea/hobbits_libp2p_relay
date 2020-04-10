@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "mothra-c.h"
+#include "mothra.h"
 
 #define sleep_seconds 5
 #define LEN(x)  (sizeof(x) / sizeof((x)[0]))

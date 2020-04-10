@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:= all mash rust c dotnet java rust-bindings ffi-bindings c-bindings dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples clean
+.PHONY:= all mash rust c dotnet java rust-bindings ffi-bindings dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples clean
 
 .DEFAULT:= all
 
@@ -25,7 +25,7 @@ rust-examples:
 	@echo Building Rust examples
 	cd $(EXAMPLES_DIR) && make $@
 
-c-examples: c-bindings
+c-examples: ffi-bindings
 	@echo ""
 	@echo Building C examples
 	cd $(EXAMPLES_DIR) && make $@
@@ -49,11 +49,6 @@ ffi-bindings:
 	@echo ""
 	@echo Building FFI bindings
 	cd $(CORE_DIR) && make $@
-
-c-bindings: ffi-bindings
-	@echo ""
-	@echo Building C bindings
-	cd $(BIND_DIR) && make $@
 
 dotnet-bindings: ffi-bindings
 	@echo ""

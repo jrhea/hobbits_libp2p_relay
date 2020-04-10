@@ -307,16 +307,15 @@ fn matches(config: &Config, args: Vec<String>) -> ArgMatches<'static> {
         Arg::with_name("datadir")
             .long("datadir")
             .value_name("DIR")
-            .help("Data directory for mothra to use.")
+            .help("The location of the data directory to use.")
             .takes_value(true)
     )
     // network related arguments
     .arg(
-        Arg::with_name("zero-ports")
-            .long("zero-ports")
-            .short("z")
-            .help("Sets all listening TCP/UDP ports to 0, allowing the OS to choose some \
-                   arbitrary free ports.")
+        Arg::with_name("auto-ports")
+            .long("auto-ports")
+            .short("a")
+            .help("Allow the OS to select from available TCP/UDP ports.")
             .takes_value(false),
     )
     .arg(
@@ -358,41 +357,17 @@ fn matches(config: &Config, args: Vec<String>) -> ArgMatches<'static> {
             .takes_value(true),
     )
     .arg(
-        Arg::with_name("enr-udp-port")
-            .long("enr-udp-port")
-            .value_name("PORT")
-            .help("The UDP port of the local ENR.")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("enr-tcp-port")
-            .long("enr-tcp-port")
-            .value_name("PORT")
-            .help("The TCP port of the local ENR.")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("enr-address")
-            .long("enr-address")
-            .value_name("ADDRESS")
-            .help("The IP address to broadcast to other peers on how to reach this node. \
-            Set this only if you are sure other nodes can connect to your local node on this address. \
-            Discovery will automatically find your external address,if possible.\n")
-            .takes_value(true),
-    )
-    .arg(
         Arg::with_name("disable-enr-auto-update")
             .long("disable-enr-auto-update")
             .short("-d")
-            .help("Discovery automatically updates the nodes local ENR with an external IP address and port as seen by other peers on the network. \
-            This disables this feature, fixing the ENR's IP/PORT to those specified on boot.\n")
+            .help("This fixes the ENR's IP/PORT to whatever is specified at startup.")
             .takes_value(false),
     )
     .arg(
         Arg::with_name("topics")
             .long("topics")
             .value_name("STRING")
-            .help("One or more comma-delimited gossipsub topic strings to subscribe to.")
+            .help("One or more comma-delimited gossipsub topics to subscribe to.")
             .takes_value(true),
     )
         .arg(
@@ -406,7 +381,7 @@ fn matches(config: &Config, args: Vec<String>) -> ArgMatches<'static> {
         Arg::with_name("debug-level")
             .long("debug-level")
             .value_name("LEVEL")
-            .help("Specifies what log records are displayed.")
+            .help("Log filter.")
             .takes_value(true)
             .possible_values(&["info", "debug", "trace", "warn", "error", "crit"])
     )

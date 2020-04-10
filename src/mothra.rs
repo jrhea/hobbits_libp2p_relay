@@ -1,12 +1,12 @@
 use crate::error;
+use env_logger::Env;
+use futures::prelude::*;
+use futures::Stream;
 use libp2p_wrapper::Service as LibP2PService;
 use libp2p_wrapper::{
     GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId, RPCErrorResponse,
     RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
-use env_logger::Env;
-use futures::prelude::*;
-use futures::Stream;
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

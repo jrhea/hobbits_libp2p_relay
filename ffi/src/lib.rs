@@ -1,5 +1,5 @@
-use mothra::{ gossip, rpc_request, rpc_response, NetworkMessage, Mothra, NetworkGlobals};
 use cast::i16;
+use mothra::{gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;

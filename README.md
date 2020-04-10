@@ -2,7 +2,7 @@
 
 **⚠️ This is a work in progress! ⚠️**
 
-Mothra was created to house native language bindings between [Rust-LibP2P](https://github.com/libp2p/rust-libp2p) and any number of other languages.  The current languages that are supported (so far) are:
+Mothra was created to house bindings between [Rust-LibP2P](https://github.com/libp2p/rust-libp2p) and any number of other languages.  The languages that are supported (so far) are:
 
 - C
 - Java
@@ -20,9 +20,9 @@ Mothra providea a simple (slightly opinionated) API that requires no previous kn
   - ports
   - logging
   - etc
-- PubSub
+- GossipSub
 - RPC
-- Discovery
+- Discv5
 
 
 
@@ -100,7 +100,7 @@ Building is easy.  First, clone the repo:
 
 ```sh
 
-> git clone git@github.com:jrhea/mothra.git
+> git clone https://github.com/prrkl/mothra.git
 
 ```
 

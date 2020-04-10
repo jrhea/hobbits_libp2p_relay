@@ -8,6 +8,11 @@ import net.p2p.Mothra;
 
 public class Example {
     public static void main(String[] args) throws InterruptedException {
+        String[] clientConstants = {
+            "java-example",
+            "v0.1.0-unstable",
+            "java-example/libp2p"
+        };
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
         argList.add(0,"./Example");
         final String[] processed_args = argList.toArray(new String[0]);
@@ -16,7 +21,7 @@ public class Example {
             Mothra.ReceivedGossipMessage = Example::printGossipMessage;
             Mothra.ReceivedRPCMessage = Example::printRPCMessage;
             Mothra.Init();
-            Mothra.Start(processed_args);
+            Mothra.Start(clientConstants, processed_args);
 
         };
         Executors.newSingleThreadExecutor().execute(run);

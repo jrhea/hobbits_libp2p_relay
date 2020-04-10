@@ -61,19 +61,15 @@ namespace Example
         // gdb --args dotnet ../../bin/Example.dll  -- --boot-nodes enr:-Iu4QOcRj-KivlPmJ8FNyYGCV7Kkub3j8OzMwXCL-iZijl8kEg4nz2J3xTP5ENqMr5QgExjP9bzI7hOHZuDWhOjsPcUBgmlkgnY0gmlwhH8AAAGJc2VjcDI1NmsxoQKVrVQHZsUqntitqKx6o6cQBmwvA78SzeCb8jTLcHY_iYN0Y3CCIyiDdWRwgiMo --listen-address 127.0.0.1 --port 9001 --datadir /tmp/.artemis
         // then run, gets SIGSEGV, bt
 
-        private static Handlers s_handlers;
+        private static Handlers? s_handlers;
         
         private static GCHandle s_discoveredPeerHandle;
         private static GCHandle s_receiveGossipHandle;
         private static GCHandle s_receiveRpcHandle;
 
-        private static Mothra.DiscoveredPeer s_discoveredPeer;
-        private static Mothra.ReceiveGossip s_receiveGossip;
-        private static Mothra.ReceiveRpc s_receiveRpc;
-
-        private static IntPtr s_discoveredPeerPtr;
-        private static IntPtr s_receiveGossipPtr;
-        private static IntPtr s_receiveRpcPtr;
+        private static Mothra.DiscoveredPeer? s_discoveredPeer;
+        private static Mothra.ReceiveGossip? s_receiveGossip;
+        private static Mothra.ReceiveRpc? s_receiveRpc;
 
         private static GCHandle s_args;
         
@@ -82,7 +78,8 @@ namespace Example
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainOnUnhandledException;
 
             Console.WriteLine("Press CTRL+C to exit");
-            Start(args);
+            string[] clientConstants = new string[] {"dotnet-example","v0.1.0-unstable","dotnet-example/libp2p"};
+            Start(clientConstants, args);
             
             while (true)
             {
@@ -102,7 +99,7 @@ namespace Example
             Console.WriteLine("Unhandled: {0}", e);
         }
 
-        public static unsafe void Start(string[] args)
+        public static unsafe void Start(string[] clientConstants, string[] args)
         {
             s_handlers = new Handlers();
             
@@ -144,7 +141,7 @@ namespace Example
             // MothraInterop.RegisterHandlers(s_discoveredPeerPtr, s_receiveGossipPtr, s_receiveRpcPtr);
 
             s_args = GCHandle.Alloc(args);
-            Mothra.Start(args, args.Length);
+            Mothra.Start(clientConstants, clientConstants.Length, args, args.Length);
         }
 
         public static unsafe void SendGossip(string topic, ReadOnlySpan<byte> data)

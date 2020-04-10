@@ -13,23 +13,24 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_Init(JNIEnv* jenv, jclass jcls)
    register_handlers(discovered_peer_callback,receive_gossip_callback,receive_rpc_callback);
 }
 
-JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobjectArray jargs){
-    int length = (*jenv)->GetArrayLength(jenv, jargs);
-    char **args = (char **) malloc(length * sizeof(char *));
-    if(args){
-        for (int i=0; i<length; i++) {
-            jstring jarg = (jstring) ((*jenv)->GetObjectArrayElement(jenv, jargs, i));
-            const char *arg = (*jenv)->GetStringUTFChars(jenv, jarg, 0);
-            args[i] = (char*) malloc(strlen(arg)*sizeof(char*));
-            strcpy(args[i],arg);
-            (*jenv)->ReleaseStringUTFChars(jenv, jarg, (const char *)arg);
-        }
+JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobjectArray jclient_constants, jobjectArray jargs){
+    // allocate memory
+    int num_client_constants = (*jenv)->GetArrayLength(jenv, jclient_constants);
+    int num_args = (*jenv)->GetArrayLength(jenv, jargs);
+
+    // copy arrays
+    char **client_constants = copy_array(jenv, jclient_constants, num_client_constants);
+    char **args = copy_array(jenv, jargs, num_args);
+    if(!client_constants || !args) return;
+
+    network_start(client_constants, num_client_constants, args, num_args);
+
+    // free memory
+    for (int i=0; i<num_client_constants; i++) {
+        free(client_constants[i]);
     }
-    else{
-        return;
-    }
-    network_start(args, length);
-    for (int i=0; i<length; i++) {
+    free(client_constants);
+    for (int i=0; i<num_args; i++) {
         free(args[i]);
     }
     free(args);
@@ -38,40 +39,40 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_Start(JNIEnv *jenv, jclass jcls, jobj
 JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendGossip(JNIEnv *jenv, jclass jcls, jbyteArray jtopic, jbyteArray jdata){
     int data_length = (*jenv)->GetArrayLength(jenv, jdata);
     int topic_length = (*jenv)->GetArrayLength(jenv, jtopic);
-    jbyte *topic = (jbyte *) 0 ;
-    jbyte *data = (jbyte *) 0 ;
+    unsigned char *topic = (unsigned char *) 0 ;
+    unsigned char *data = (unsigned char *) 0 ;
     jboolean isCopy = JNI_TRUE;
     if (jtopic) {
-        topic = (*jenv)->GetByteArrayElements(jenv,jtopic,&isCopy);
+        topic = (unsigned char *)(*jenv)->GetByteArrayElements(jenv,jtopic,&isCopy);
         if (!topic) return ;
     }
     if (jdata) {
-        data = (*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
+        data = (unsigned char *)(*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
         if (!data) return ;
     }
     send_gossip(topic,topic_length,data,data_length);
-    if (topic) (*jenv)->ReleaseByteArrayElements(jenv, jtopic, topic, 0);
-    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
+    if (topic) (*jenv)->ReleaseByteArrayElements(jenv, jtopic, (jbyte *)topic, 0);
+    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, (jbyte *)data, 0);
 }
 
 JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendRPC(JNIEnv *jenv, jclass jcls, jbyteArray jmethod, jint jreq_resp, jbyteArray jpeer, jbyteArray jdata){
     int data_length = (*jenv)->GetArrayLength(jenv, jdata);
     int method_length = (*jenv)->GetArrayLength(jenv, jmethod);
     int peer_length = (*jenv)->GetArrayLength(jenv, jpeer);
-    jbyte *data = (jbyte *) 0 ;
-    jbyte *method = (jbyte *) 0 ;
-    jbyte *peer = (jbyte *) 0 ;
+    unsigned char *data = (unsigned char *) 0 ;
+    unsigned char *method = (unsigned char *) 0 ;
+    unsigned char *peer = (unsigned char *) 0 ;
     jboolean isCopy = JNI_TRUE;
     if (jdata) {
-        data = (*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
+        data = (unsigned char *)(*jenv)->GetByteArrayElements(jenv,jdata,&isCopy);
         if (!data) return ;
     }
     if (jpeer) {
-        peer = (*jenv)->GetByteArrayElements(jenv,jpeer,&isCopy);
+        peer = (unsigned char *)(*jenv)->GetByteArrayElements(jenv,jpeer,&isCopy);
         if (!peer) return ;
     }
     if (jmethod) {
-        method = (*jenv)->GetByteArrayElements(jenv,jmethod,&isCopy);
+        method = (unsigned char *)(*jenv)->GetByteArrayElements(jenv,jmethod,&isCopy);
         if (!method) return ;
     }
     if (jreq_resp == 0){
@@ -79,9 +80,9 @@ JNIEXPORT void JNICALL Java_net_p2p_Mothra_SendRPC(JNIEnv *jenv, jclass jcls, jb
     } else if (jreq_resp == 1){
         send_rpc_response(method,method_length,peer,peer_length,data,data_length);
     }
-    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, data, 0);
-    if (peer) (*jenv)->ReleaseByteArrayElements(jenv, jpeer, peer, 0);
-    if (method) (*jenv)->ReleaseByteArrayElements(jenv, jmethod, method, 0);
+    if (data) (*jenv)->ReleaseByteArrayElements(jenv, jdata, (jbyte *)data, 0);
+    if (peer) (*jenv)->ReleaseByteArrayElements(jenv, jpeer, (jbyte *)peer, 0);
+    if (method) (*jenv)->ReleaseByteArrayElements(jenv, jmethod, (jbyte *)method, 0);
 }
 
 void discovered_peer_callback(const unsigned char* peer, int peer_length) {
@@ -174,6 +175,18 @@ void receive_rpc_callback(const unsigned char* method, int method_length, int re
         }
         (*jenv)->CallStaticVoidMethod(jenv, mothra_class, receiverpc_method, jmethod, jreq_resp, jpeer, jdata);
     }
+}
+
+static char** copy_array(JNIEnv *jenv, jobjectArray src, int num) {
+    char **result = (char **) malloc(num * sizeof(char *));
+    for (int i=0; i<num; i++) {
+        jstring jitem = (jstring) ((*jenv)->GetObjectArrayElement(jenv, src, i));
+        const char *item = (*jenv)->GetStringUTFChars(jenv, jitem, 0);
+        result[i] = (char*) malloc(strlen(item)*sizeof(char*));
+        strcpy(result[i],item);
+        (*jenv)->ReleaseStringUTFChars(jenv, jitem, (const char *)item);
+    }
+    return result;
 }
 
 static void detach(JNIEnv* jenv){

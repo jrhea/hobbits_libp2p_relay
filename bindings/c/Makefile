@@ -3,7 +3,7 @@ SHELL := /bin/sh
 include ../../config.mk
 
 CFLAGS:=-O2 -fPIC
-LFLAGS:=-shared
+LFLAGS:=
 INCLUDES:=-I$(CBIND_DIR)/
 
 .PHONY: c-bindings clean	

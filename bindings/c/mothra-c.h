@@ -13,21 +13,21 @@
 extern "C" {
 #endif
 
-EXPORT void network_start(char** args, int length);
-EXPORT void send_gossip(unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
-EXPORT void send_rpc_request(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
-EXPORT void send_rpc_response(unsigned char* method_utf8, int method_length, unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
+EXPORT void network_start(char**, int, char**, int);
+EXPORT void send_gossip(unsigned char*, int, unsigned char*, int);
+EXPORT void send_rpc_request(unsigned char*, int, unsigned char*, int, unsigned char*, int);
+EXPORT void send_rpc_response(unsigned char*, int, unsigned char*, int, unsigned char*, int);
 
 EXPORT void register_handlers(
-   void (*discovered_peer_ptr)(const unsigned char* peer_utf8, int peer_length), 
-   void (*receive_gossip_ptr)(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length), 
-   void (*receive_rpc_ptr)(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length)
+   void (*discovered_peer_ptr)(const unsigned char*, int), 
+   void (*receive_gossip_ptr)(const unsigned char*, int, unsigned char*, int), 
+   void (*receive_rpc_ptr)(const unsigned char*, int, int, const unsigned char*, int, unsigned char*, int)
 );
        
 // Events functions called by Core
-EXPORT void discovered_peer(const unsigned char* peer_utf8, int peer_length);
-EXPORT void receive_gossip(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length);
-EXPORT void receive_rpc(const unsigned char* method_utf8, int method_length, int req_resp, const unsigned char* peer_utf8, int peer_length, unsigned char* data, int data_length);
+EXPORT void discovered_peer(const unsigned char*, int);
+EXPORT void receive_gossip(const unsigned char*, int, unsigned char*, int);
+EXPORT void receive_rpc(const unsigned char*, int, int, const unsigned char*, int, unsigned char*, int);
 
 #ifdef __cplusplus
 }

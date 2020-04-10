@@ -10,7 +10,7 @@ public class Mothra {
     public static BiFunction<String, byte[], Boolean> ReceivedGossipMessage;
     public static QuadFunction<String, Integer, String, byte[], Boolean> ReceivedRPCMessage;
     public static native void Init();
-    public static native void Start(String[] args);
+    public static native void Start(String[] client_constants, String[] args);
     public static native void SendGossip(byte[] topic, byte[] message);
     public static native void SendRPC(byte[] method, int req_resp, byte[] peer, byte[] message);
     public static void DiscoveredPeer(byte[] peer) {

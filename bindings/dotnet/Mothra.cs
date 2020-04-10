@@ -23,7 +23,7 @@ namespace Bindings
         private const string DllName = "libmothra";
         
         [DllImport(DllName, EntryPoint = "network_start", CallingConvention = CallingConvention.Cdecl)]
-        public static extern unsafe void Start([In, Out] string[] args, int length);
+        public static extern unsafe void Start([In, Out] string[] clientConstants, int numClientConstants, [In, Out] string[] args, int numArgs);
 
         [DllImport(DllName, EntryPoint = "send_gossip", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void SendGossip(byte* topicUtf8, int topicLength, byte* data, int dataLength);
@@ -36,7 +36,6 @@ namespace Bindings
 
         [DllImport(DllName, EntryPoint = "register_handlers", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void RegisterHandlers(DiscoveredPeer discoveredPeer, ReceiveGossip receiveGossip, ReceiveRpc receiveRpc);
-        //public static extern unsafe void RegisterHandlers(IntPtr discoveredPeer, IntPtr receiveGossip, IntPtr receiveRpc);
         
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public unsafe delegate void DiscoveredPeer(byte* peerUtf8, int peerLength);

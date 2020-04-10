@@ -4,6 +4,7 @@ use libp2p_wrapper::NetworkGlobals;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
+use std::{slice, str};
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
 
@@ -17,32 +18,32 @@ struct Context {
 
 static mut CONTEXT: Vec<Context> = Vec::new();
 
-type DiscoveredPeerType = unsafe extern "C" fn(peer_c_uchar: *const c_uchar, peer_length: i16);
+type DiscoveredPeerType = unsafe extern "C" fn(peer: *const c_uchar, peer_length: i16);
 type ReceiveGossipType = unsafe extern "C" fn(
-    topic_c_uchar: *const c_uchar,
+    topic: *const c_uchar,
     topic_length: i16,
-    data_c_uchar: *mut c_uchar,
+    data: *mut c_uchar,
     data_length: i16,
 );
 type ReceiveRpcType = unsafe extern "C" fn(
-    method_c_uchar: *const c_uchar,
+    method: *const c_uchar,
     method_length: i16,
     req_resp: i16,
-    peer_c_uchar: *const c_uchar,
+    peer: *const c_uchar,
     peer_length: i16,
-    data_c_uchar: *mut c_uchar,
+    data: *mut c_uchar,
     data_length: i16,
 );
 static mut DISCOVERED_PEER_PTR: Option<DiscoveredPeerType> = None;
 static mut RECEIVE_GOSSIP_PTR: Option<ReceiveGossipType> = None;
 static mut RECEIVE_RPC_PTR: Option<ReceiveRpcType> = None;
 
-pub fn discovered_peer(peer: String) {
+fn discovered_peer(peer: String) {
     let peer_length = i16(peer.len()).unwrap();
     unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
 }
 
-pub fn receive_gossip(topic: String, mut data: Vec<u8>) {
+fn receive_gossip(topic: String, mut data: Vec<u8>) {
     let topic_length = i16(topic.len()).unwrap();
     let data_length = i16(data.len()).unwrap();
     unsafe {
@@ -50,7 +51,7 @@ pub fn receive_gossip(topic: String, mut data: Vec<u8>) {
     };
 }
 
-pub fn receive_rpc(method: String, req_resp: u8, peer: String, mut data: Vec<u8>) {
+fn receive_rpc(method: String, req_resp: u8, peer: String, mut data: Vec<u8>) {
     let method_length = i16(method.len()).unwrap();
     let peer_length = i16(peer.len()).unwrap();
     let data_length = i16(data.len()).unwrap();
@@ -79,22 +80,64 @@ pub unsafe extern "C" fn register_handlers(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: isize) {
-    let mut args = Vec::<String>::new();
-    for idx in 0..length {
-        let args_cstr = CStr::from_ptr(*args_c_char.offset(idx));
+pub unsafe extern "C" fn network_start(
+    client_constants: *mut *mut c_char,
+    num_client_constants: isize,
+    args: *mut *mut c_char,
+    num_args: isize,
+) {
+    let name_cstr = CStr::from_ptr(*client_constants.offset(0));
+    let name: Option<String> = match name_cstr.to_str() {
+        Ok(s) => {
+            if !s.is_empty() {
+                Some(s.to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
+    let client_version_cstr = CStr::from_ptr(*client_constants.offset(1));
+    let client_version: Option<String> = match client_version_cstr.to_str() {
+        Ok(s) => {
+            if !s.is_empty() {
+                Some(s.to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
+    let protocol_version_cstr = CStr::from_ptr(*client_constants.offset(2));
+    let protocol_version: Option<String> = match protocol_version_cstr.to_str() {
+        Ok(s) => {
+            if !s.is_empty() {
+                Some(s.to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
+    let mut args_vec = Vec::<String>::new();
+    for idx in 0..num_args {
+        let args_cstr = CStr::from_ptr(*args.offset(idx));
         if let Ok(s) = args_cstr.to_str() {
-            args.push(s.to_string());
+            args_vec.push(s.to_string());
         }
     }
+
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
     let (network_globals, network_send, network_exit, log) = NetworkService::new(
-        None,
-        None,
-        None,
-        args,
+        name,
+        client_version,
+        protocol_version,
+        args_vec,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,
@@ -112,67 +155,51 @@ pub unsafe extern "C" fn network_start(args_c_char: *mut *mut c_char, length: is
 
 #[no_mangle]
 pub unsafe extern "C" fn send_gossip(
-    topic_c_uchar: *mut c_uchar,
+    topic: *mut c_uchar,
     topic_length: usize,
-    data_c_uchar: *mut c_uchar,
+    data: *mut c_uchar,
     data_length: usize,
 ) {
-    let topic =
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(topic_c_uchar, topic_length))
-            .to_string();
-    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
     network::gossip(
         CONTEXT[0].network_send.clone(),
-        topic,
-        data,
+        str::from_utf8_unchecked(slice::from_raw_parts(topic, topic_length)).into(),
+        slice::from_raw_parts_mut(data, data_length).to_vec(),
         CONTEXT[0].log.clone(),
     );
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn send_rpc_request(
-    method_c_uchar: *mut c_uchar,
+    method: *mut c_uchar,
     method_length: usize,
-    peer_c_uchar: *mut c_uchar,
+    peer: *mut c_uchar,
     peer_length: usize,
-    data_c_uchar: *mut c_uchar,
+    data: *mut c_uchar,
     data_length: usize,
 ) {
-    let method =
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(method_c_uchar, method_length))
-            .to_string();
-    let peer = std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
-        .to_string();
-    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
     network::rpc_request(
         CONTEXT[0].network_send.clone(),
-        method,
-        peer,
-        data,
+        str::from_utf8_unchecked(slice::from_raw_parts(method, method_length)).into(),
+        str::from_utf8_unchecked(slice::from_raw_parts(peer, peer_length)).into(),
+        slice::from_raw_parts_mut(data, data_length).to_vec(),
         CONTEXT[0].log.clone(),
     );
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn send_rpc_response(
-    method_c_uchar: *mut c_uchar,
+    method: *mut c_uchar,
     method_length: usize,
-    peer_c_uchar: *mut c_uchar,
+    peer: *mut c_uchar,
     peer_length: usize,
-    data_c_uchar: *mut c_uchar,
+    data: *mut c_uchar,
     data_length: usize,
 ) {
-    let method =
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(method_c_uchar, method_length))
-            .to_string();
-    let peer = std::str::from_utf8_unchecked(std::slice::from_raw_parts(peer_c_uchar, peer_length))
-        .to_string();
-    let data = std::slice::from_raw_parts_mut(data_c_uchar, data_length).to_vec();
     network::rpc_response(
         CONTEXT[0].network_send.clone(),
-        method,
-        peer,
-        data,
+        str::from_utf8_unchecked(slice::from_raw_parts(method, method_length)).into(),
+        str::from_utf8_unchecked(slice::from_raw_parts(peer, peer_length)).into(),
+        slice::from_raw_parts_mut(data, data_length).to_vec(),
         CONTEXT[0].log.clone(),
     );
 }

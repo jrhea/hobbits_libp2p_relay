@@ -12,6 +12,7 @@
 #include "mothra-c.h"
 
 #define sleep_seconds 5
+#define LEN(x)  (sizeof(x) / sizeof((x)[0]))
 
 
 void on_discovered_peer(const unsigned char* peer_utf8, int peer_length) {
@@ -33,12 +34,18 @@ void on_receive_rpc(const unsigned char* method_utf8, int method_length, int req
 }
 
 int main (int argc, char** argv) {
+
+    char* client_constants[3] = {
+        "c-example",
+        "v0.1.0-unstable",
+        "c-example/libp2p"
+    };
     register_handlers(
         on_discovered_peer,
         on_receive_gossip,
         on_receive_rpc
     );
-    network_start(argv,argc);
+    network_start((char**)client_constants,LEN(client_constants),argv,argc);
     srand(time(NULL));
     while(1){
 #ifdef _WIN64
@@ -55,4 +62,5 @@ int main (int argc, char** argv) {
         int data_length = (int)(strlen(data));
         send_gossip((unsigned char*)topic, topic_length, (unsigned char*)data, data_length);
     }
+
 }

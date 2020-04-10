@@ -14,9 +14,8 @@ else ifeq ($(OS), darwin)
 endif
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 OUT_DIR:=$(ROOT_DIR)/bin
-CORE_DIR:=$(ROOT_DIR)/core
+FFI_DIR:=$(ROOT_DIR)/ffi
 BIND_DIR:=$(ROOT_DIR)/bindings
-RBIND_DIR:=$(BIND_DIR)/rust
 CBIND_DIR:=$(BIND_DIR)/c
 DBIND_DIR:=$(BIND_DIR)/dotnet
 JBIND_DIR:=$(BIND_DIR)/java

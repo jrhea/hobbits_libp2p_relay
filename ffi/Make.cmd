@@ -15,7 +15,7 @@ if not exist "%OPENSSL_DIR%" goto :openssl_missing
 @echo ## [Core] Cleaning "%OUT_DIR%\release"
 rmdir /S /Q "%OUT_DIR%\release"
 
-@echo ## Building Rust library to "%OUT_DIR%"
+@echo ## Building FFI library to "%OUT_DIR%"
 cargo build --release --target-dir="%OUT_DIR%"
 if errorlevel 0 goto :copy
 goto :end

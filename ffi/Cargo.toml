@@ -1,0 +1,21 @@
+[package]
+name = "mothra-ffi"
+version = "0.2.0"
+authors = ["Jonny Rhea <jonny.rhea@consensys.net>"]
+edition = "2018"
+include = [
+    "**/*.rs",
+    "Cargo.toml"
+]
+
+[dependencies]
+mothra =  { path = "../" }
+cast = "0.2.2"
+tokio = "0.1.22"
+slog = { version = "2.5.2" , features = ["max_level_trace"] }
+
+[lib]
+name = "mothra"
+path = "src/lib.rs"
+crate-type = ["staticlib","cdylib"]
+

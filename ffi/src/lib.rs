@@ -1,6 +1,8 @@
-use crate::{network, network::NetworkMessage, network::NetworkService};
 use cast::i16;
-use libp2p_wrapper::NetworkGlobals;
+use mothra::{
+    network::gossip, network::rpc_request, network::rpc_response, network::NetworkMessage,
+    network::NetworkService, NetworkGlobals,
+};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
@@ -160,7 +162,7 @@ pub unsafe extern "C" fn send_gossip(
     data: *mut c_uchar,
     data_length: usize,
 ) {
-    network::gossip(
+    gossip(
         CONTEXT[0].network_send.clone(),
         str::from_utf8_unchecked(slice::from_raw_parts(topic, topic_length)).into(),
         slice::from_raw_parts_mut(data, data_length).to_vec(),
@@ -177,7 +179,7 @@ pub unsafe extern "C" fn send_rpc_request(
     data: *mut c_uchar,
     data_length: usize,
 ) {
-    network::rpc_request(
+    rpc_request(
         CONTEXT[0].network_send.clone(),
         str::from_utf8_unchecked(slice::from_raw_parts(method, method_length)).into(),
         str::from_utf8_unchecked(slice::from_raw_parts(peer, peer_length)).into(),
@@ -195,7 +197,7 @@ pub unsafe extern "C" fn send_rpc_response(
     data: *mut c_uchar,
     data_length: usize,
 ) {
-    network::rpc_response(
+    rpc_response(
         CONTEXT[0].network_send.clone(),
         str::from_utf8_unchecked(slice::from_raw_parts(method, method_length)).into(),
         str::from_utf8_unchecked(slice::from_raw_parts(peer, peer_length)).into(),

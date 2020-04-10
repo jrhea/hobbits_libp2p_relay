@@ -2,15 +2,18 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY:= all mash rust c dotnet java rust-bindings ffi-bindings dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples clean
+.PHONY: all mash lib rust c dotnet java ffi dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples rust-lint clean
 
-.DEFAULT:= all
+.DEFAULT: all
 
-all: rust c dotnet java
+all: lib rust c dotnet java
 
 mash: clean rust c dotnet java
 
-style: rust-fmt rust-clippy
+lib:
+	@echo ""
+	@echo Building Mothra library
+	cargo build --release --target-dir=$(OUT_DIR)
 
 rust: rust-examples
 
@@ -25,7 +28,7 @@ rust-examples:
 	@echo Building Rust examples
 	cd $(EXAMPLES_DIR) && make $@
 
-c-examples: ffi-bindings
+c-examples: ffi
 	@echo ""
 	@echo Building C examples
 	cd $(EXAMPLES_DIR) && make $@
@@ -40,38 +43,28 @@ java-examples: java-bindings
 	@echo Building Java examples
 	cd $(EXAMPLES_DIR) && make $@
 
-rust-bindings:
+ffi:
 	@echo ""
-	@echo Building Rust bindings
-	cd $(CORE_DIR) && make $@
+	@echo Building FFI
+	cd $(FFI_DIR) && make $@
 
-ffi-bindings:
-	@echo ""
-	@echo Building FFI bindings
-	cd $(CORE_DIR) && make $@
-
-dotnet-bindings: ffi-bindings
+dotnet-bindings: ffi
 	@echo ""
 	@echo Building .Net bindings
 	cd $(BIND_DIR) && make $@
 
-java-bindings: ffi-bindings
+java-bindings: ffi
 	@echo ""
 	@echo Building Java bindings
 	cd $(BIND_DIR) && make $@
 
-rust-fmt:
-	@echo ""
-	@echo Running cargo fmt
-	cd $(CORE_DIR) && make $@
-
-rust-clippy:
-	@echo ""
-	@echo Running cargo clippy
-	cd $(CORE_DIR) && make $@
+rust-lint: 
+	cargo fmt
+	cargo clippy
+	cd $(FFI_DIR) && make $@
 
 clean:
-	rm -rf $(OUT_DIR)/*
-	cd $(CORE_DIR) && make $@
+	cargo clean --target-dir=$(OUT_DIR)
+	cd $(FFI_DIR) && make $@
 	cd $(BIND_DIR) && make $@
 	cd $(EXAMPLES_DIR) && make $@

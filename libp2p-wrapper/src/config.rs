@@ -284,7 +284,7 @@ impl Config {
         * a random free port so that we aren't needlessly updating ENR
         * Discovery address is set to localhost by default.
         */
-        if let Some(zero_ports_str) = args.value_of("zero-ports") {
+        if args.is_present("zero-ports") {
             if self.enr_address == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))) {
                 self.enr_address = None
             }

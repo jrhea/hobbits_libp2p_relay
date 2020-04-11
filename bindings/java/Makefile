@@ -15,7 +15,7 @@ java-bindings-build: Mothra.class
 
 ifeq ($(OS), darwin)
 java-bindings: java-bindings-build
-	install_name_tool -change $(OUT_DIR)/release/deps/libmothra.dylib @loader_path/libmothra.dylib $(OUT_DIR)/libmothra-jni.dylib
+	install_name_tool -change $(OUT_DIR)/$(TARGET_NAME)/deps/libmothra.dylib @loader_path/libmothra.dylib $(OUT_DIR)/libmothra-jni.dylib
 else
 java-bindings: java-bindings-build
 endif

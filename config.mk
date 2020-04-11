@@ -13,9 +13,12 @@ else ifeq ($(OS), darwin)
 	JAVA_HOME:= $(shell java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | sed 's/\s*java.home = //' | sed 's/\/jre//')
 endif
 
-BUILD_MODE:=
 ifdef rls
-		BUILD_MODE:=--release
+	TARGET_NAME:=release
+	BUILD_MODE:=--$(TARGET_NAME)
+else
+	TARGET_NAME:=debug
+	BUILD_MODE:=
 endif
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))

@@ -1,0 +1,35 @@
+{
+   // Use IntelliSense to find out which attributes exist for C# debugging
+   // Use hover for the description of the existing attributes
+   // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
+   "version": "0.2.0",
+   "configurations": [
+    {
+        "name": "Rust",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceRoot}/bin/debug/rust-example",
+        "args": ["--topics", "/eth2/beacon_block/ssz,/eth2/beacon_attestation/ssz,/eth2/voluntary_exit/ssz,/eth2/proposer_slashing/ssz,/eth2/attester_slashing/ssz", "--debug-level", "trace"],
+        "cwd": "${workspaceRoot}",
+    },
+    {
+        "name": ".NET Core Launch (console)",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "build",
+        // If you have changed target frameworks, make sure to update the program path.
+        "program": "${workspaceFolder}/examples/dotnet/bin/Debug/netcoreapp3.0/Example.dll",
+        "args": [],
+        "cwd": "${workspaceFolder}/examples/dotnet",
+        // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+        "console": "internalConsole",
+        "stopAtEntry": false
+    },
+    {
+        "name": ".NET Core Attach",
+        "type": "coreclr",
+        "request": "attach",
+        "processId": "${command:pickProcess}"
+    }
+    ]
+}

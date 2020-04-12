@@ -13,11 +13,13 @@ fn main() {
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
     let executor = runtime.executor();
+    let config = Mothra::get_config(
+        Some("rust-example".into()),
+        Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
+        Some("rust-example/libp2p".into()),
+        args);
     let (network_globals, network_send, network_exit, network_logger) = Mothra::new(
-            Some("rust-example".into()),
-            Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
-            Some("rust-example/libp2p".into()),
-            args,
+            config,
             &executor,
             on_discovered_peer,
             on_receive_gossip,
@@ -27,7 +29,7 @@ fn main() {
     let dur = time::Duration::from_secs(5);
     loop {
         thread::sleep(dur);
-        let topic = "/eth2/beacon_block/ssz".to_string();
+        let topic = "/mothra/topic1".to_string();
         let data = format!("Hello from Rust.  Elapsed time: {:?}",start.elapsed()).as_bytes().to_vec();
         gossip(network_send.clone(),topic, data,network_logger.clone());
     }

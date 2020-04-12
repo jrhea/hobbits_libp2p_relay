@@ -85,8 +85,8 @@ pub unsafe extern "C" fn network_start(
     args: *mut *mut c_char,
     num_args: isize,
 ) {
-    let name_cstr = CStr::from_ptr(*client_constants.offset(0));
-    let name: Option<String> = match name_cstr.to_str() {
+    let client_name_cstr = CStr::from_ptr(*client_constants.offset(0));
+    let client_name: Option<String> = match client_name_cstr.to_str() {
         Ok(s) => {
             if !s.is_empty() {
                 Some(s.to_string())
@@ -132,11 +132,9 @@ pub unsafe extern "C" fn network_start(
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
+    let config = Mothra::get_config(client_name, client_version, protocol_version, args_vec);
     let (network_globals, network_send, network_exit, log) = Mothra::new(
-        name,
-        client_version,
-        protocol_version,
-        args_vec,
+        config,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,

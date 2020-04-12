@@ -1,4 +1,4 @@
-use crate::error;
+use crate::{error, cli, config::Config};
 use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
@@ -7,6 +7,7 @@ use libp2p_wrapper::{
     GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId, RPCErrorResponse,
     RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
+
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -44,10 +45,7 @@ pub struct Mothra {
 
 impl Mothra {
     pub fn new(
-        name: Option<String>,
-        client_version: Option<String>,
-        protocol_version: Option<String>,
-        args: Vec<String>,
+        mut config: Config,
         executor: &TaskExecutor,
         discovered_peer: DiscoveredPeerType,
         receive_gossip: ReceiveGossipType,
@@ -58,12 +56,6 @@ impl Mothra {
         oneshot::Sender<()>,
         slog::Logger,
     )> {
-        // build NetworkConfig from args
-        let mut config = NetworkConfig::new();
-        config
-            .apply_args(name, client_version, protocol_version, args)
-            .unwrap();
-
         // configure logging
         env_logger::Builder::from_env(Env::default()).init();
         let decorator = slog_term::TermDecorator::new().build();
@@ -84,13 +76,12 @@ impl Mothra {
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
 
-        let propagation_percentage = config.propagation_percentage;
         // build the current enr_fork_id for adding to our local ENR
         //TODO
         let enr_fork_id = [0u8; 32].to_vec();
 
         // launch libp2p Network
-        let (network_globals, libp2p) = LibP2PService::new(&mut config, enr_fork_id, log.clone())?;
+        let (network_globals, libp2p) = LibP2PService::new(&mut config.network_config, enr_fork_id, log.clone())?;
 
         //TODO
         // for enr in load_dht::<T::Store, T::EthSpec>(store.clone()) {
@@ -108,7 +99,7 @@ impl Mothra {
             network_send: network_send.clone(),
             network_globals: network_globals.clone(),
             initial_delay,
-            propagation_percentage,
+            propagation_percentage: config.network_config.propagation_percentage,
             discovered_peer,
             receive_gossip,
             receive_rpc,
@@ -118,6 +109,20 @@ impl Mothra {
         let network_exit = spawn_mothra(network_service, &executor)?;
 
         Ok((network_globals, network_send, network_exit, log.clone()))
+    }
+
+    pub fn get_config(
+        client_name: Option<String>,
+        client_version: Option<String>,
+        protocol_version: Option<String>,
+        args: Vec<String>,
+    ) -> Config {
+        // build NetworkConfig from args
+        let mut config = Config::new(client_name, client_version, protocol_version);
+        config
+            .apply_cli_args(args)
+            .unwrap();
+        config
     }
 }
 

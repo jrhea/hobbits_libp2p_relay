@@ -7,7 +7,10 @@ pub mod types;
 
 pub use crate::types::{error, NetworkGlobals, PeerInfo, GossipTopic, Enr, EnrBitfield, EnrForkId, SubnetId};
 pub use config::Config as NetworkConfig;
+pub use config::unused_port;
 pub use libp2p::gossipsub::{MessageId, Topic, TopicHash};
 pub use libp2p::{PeerId, Swarm, multiaddr, Multiaddr};
 pub use rpc::{RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
 pub use service::{Libp2pEvent, Service};
+
+pub const DEFAULT_CLIENT_NAME: &str = "mothra";

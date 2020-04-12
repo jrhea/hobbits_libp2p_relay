@@ -90,7 +90,7 @@ namespace Example
 
                 byte[] data = Encoding.UTF8.GetBytes(message);
 
-                SendGossip("/eth2/beacon_block/ssz", data);
+                SendGossip("/mothra/topic1", data);
             }
         }
 

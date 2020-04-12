@@ -1,39 +1,28 @@
 extern crate target_info;
-use crate::{Enr, error};
+use target_info::Target;
+use crate::{Enr, error, DEFAULT_CLIENT_NAME};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
 use serde_derive::{Deserialize, Serialize};
-use clap::{App, AppSettings, Arg, ArgMatches};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::process;
-use target_info::Target;
 
 pub const GOSSIP_MAX_SIZE: usize = 1_048_576;
-pub const DEFAULT_NAME: &str = "mothra";
-pub const DEFAULT_PROTOCOL_VERSION: &str = "mothra/libp2p";
-pub const NETWORK_DIR: &str = "network";
-pub const DEFAULT_DEBUG_LEVEL: &str = "info";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
-/// Network configuration for mothra.
+/// Network configuration
 pub struct Config {
-    /// Application name
-    pub name: String,
 
-    /// Provides client version 
-    pub client_version: String,
+    /// The network agent version
+    pub agent_version: String,
 
-    /// Provides the current platform
-    pub platform: String,
-
-    /// Provides protocol version 
+    /// The protocol version 
     pub protocol_version: String,
 
-    /// network directory for mothra
+    /// The network directory for mothra
     pub network_dir: PathBuf,
 
     /// IP address to listen on.
@@ -85,20 +74,21 @@ pub struct Config {
     /// testing purposes and will likely be removed in future versions.
     // TODO: Remove this functionality for mainnet
     pub propagation_percentage: Option<u8>,
-
-    /// log debug level
-    pub debug_level: String,
 }
 
 impl Default for Config {
     /// Generate a default network configuration.
     fn default() -> Self {
-        let client_version = format!("v{}", env!("CARGO_PKG_VERSION"));
-        let protocol_version = DEFAULT_PROTOCOL_VERSION.to_string();
-        let platform = format!("{}-{}", Target::arch(), Target::os());
+        let agent_version = format!(
+            "{}/{}/{}",
+            DEFAULT_CLIENT_NAME,
+            format!("v{}", env!("CARGO_PKG_VERSION")),
+            format!("{}-{}", Target::arch(), Target::os()),
+        );
+
         let mut network_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        network_dir.push(format!(".{}",DEFAULT_NAME));
-        network_dir.push(NETWORK_DIR);
+        network_dir.push(format!(".{}",DEFAULT_CLIENT_NAME));
+        network_dir.push("network");
 
         // The function used to generate a gossipsub message id
         // We use base64(SHA256(data)) for content addressing
@@ -133,10 +123,8 @@ impl Default for Config {
             .build();
 
         Config {
-            name: DEFAULT_NAME.to_string(),
-            client_version,
-            platform,
-            protocol_version,
+            agent_version,
+            protocol_version: format!("{}/libp2p",DEFAULT_CLIENT_NAME),
             network_dir,
             listen_address: "127.0.0.1".parse().expect("valid ip address"),
             libp2p_port: 9000,
@@ -152,7 +140,6 @@ impl Default for Config {
             libp2p_nodes: vec![],
             topics: vec![],
             propagation_percentage: None,
-            debug_level: DEFAULT_DEBUG_LEVEL.to_string(),
         }
     }
 }
@@ -161,228 +148,6 @@ impl Config {
     pub fn new() -> Self {
         Config::default()
     }
-
-    pub fn agent_version(&mut self) -> String {
-        format!(
-            "{}/{}/{}",
-            self.name,
-            self.client_version,
-            self.platform
-        )
-    }
-
-    pub fn apply_args(&mut self, name: Option<String>, client_version: Option<String>, protocol_version: Option<String>, cli_args: Vec<String>) -> Result<(), String> {
-    
-        // update self.name if name is not None
-        if let Some(x) = name { self.name = x; }
-        // update self.client_version if client_version is not None
-        if let Some(x) = client_version { self.client_version = x; }
-        // update self.protocol_version if protocol_version is not None
-        if let Some(x) = protocol_version { self.protocol_version = x; }
-
-          // collect cli argument matches
-        let args = matches(self, cli_args);
-
-        // If a `datadir` has been specified, set the network dir to be inside it.
-        if let Some(dir) = args.value_of("datadir") {
-            self.network_dir = PathBuf::from(dir).join("network");
-        };
-
-        if let Some(listen_address_str) = args.value_of("listen-address") {
-            let listen_address = listen_address_str
-                .parse()
-                .map_err(|_| format!("Invalid listen address: {:?}", listen_address_str))?;
-            self.listen_address = listen_address;
-            self.enr_address = Some(listen_address);
-        }
-
-        if let Some(max_peers_str) = args.value_of("maxpeers") {
-            self.max_peers = max_peers_str
-                .parse::<usize>()
-                .map_err(|_| format!("Invalid number of max peers: {}", max_peers_str))?;
-        }
-
-        if let Some(port_str) = args.value_of("port") {
-            let port = port_str
-                .parse::<u16>()
-                .map_err(|_| format!("Invalid port: {}", port_str))?;
-                self.libp2p_port = port;
-                self.discovery_port = port;
-                self.enr_tcp_port = Some(port);
-                self.enr_udp_port = Some(port);
-        }
-
-        if let Some(disc_port_str) = args.value_of("discovery-port") {
-            self.discovery_port = disc_port_str
-                .parse::<u16>()
-                .map_err(|_| format!("Invalid discovery port: {}", disc_port_str))?;
-                self.enr_udp_port = Some(self.discovery_port);
-        }
-
-        if let Some(boot_enr_str) = args.value_of("boot-nodes") {
-            self.boot_nodes = boot_enr_str
-                .split(',')
-                .map(|enr| enr.parse().map_err(|_| format!("Invalid ENR: {}", enr)))
-                .collect::<Result<Vec<Enr>, _>>()?;
-        }
-
-        if let Some(libp2p_addresses_str) = args.value_of("libp2p-addresses") {
-            self.libp2p_nodes = libp2p_addresses_str
-                .split(',')
-                .map(|multiaddr| {
-                    multiaddr
-                        .parse()
-                        .map_err(|_| format!("Invalid Multiaddr: {}", multiaddr))
-                })
-                .collect::<Result<Vec<Multiaddr>, _>>()?;
-        }
-
-        if let Some(enr_address_str) = args.value_of("enr-address") {
-            self.enr_address = Some(
-                enr_address_str
-                    .parse()
-                    .map_err(|_| format!("Invalid discovery address: {:?}", enr_address_str))?,
-            )
-        }
-
-        if let Some(enr_udp_port_str) = args.value_of("enr-udp-port") {
-            self.enr_udp_port = Some(
-                enr_udp_port_str
-                    .parse::<u16>()
-                    .map_err(|_| format!("Invalid discovery port: {}", enr_udp_port_str))?,
-            );
-        }
-    
-        if let Some(enr_tcp_port_str) = args.value_of("enr-tcp-port") {
-            self.enr_tcp_port = Some(
-                enr_tcp_port_str
-                    .parse::<u16>()
-                    .map_err(|_| format!("Invalid ENR TCP port: {}", enr_tcp_port_str))?,
-            );
-        }
-
-
-        if args.is_present("disable_enr_auto_update") {
-            self.discv5_config.enr_update = false;
-        }
-
-        if let Some(topics_str) = args.value_of("topics") {
-            self.topics = topics_str.split(',').map(|s| s.into()).collect();
-        }
-
-        if let Some(debug_level_str) = args.value_of("debug-level") {
-            self.debug_level = debug_level_str
-                    .parse()
-                    .map_err(|_| format!("Invalid debug-level: {:?}", debug_level_str))?;
-        }
-
-        if args.is_present("auto-ports") {
-            if self.enr_address == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))) {
-                self.enr_address = None
-            }
-            self.libp2p_port =
-                unused_port("tcp").map_err(|e| format!("Failed to get port for libp2p: {}", e))?;
-            self.discovery_port =
-                unused_port("udp").map_err(|e| format!("Failed to get port for discovery: {}", e))?;
-        }
-
-        Ok(())
-    }
-}
-
-fn matches(config: &Config, args: Vec<String>) -> ArgMatches<'static> {
-    App::new(config.name.clone())
-    .version(&*config.client_version)
-    .setting(AppSettings::ColoredHelp)
-    .setting(AppSettings::NextLineHelp)
-    .arg(
-        Arg::with_name("datadir")
-            .long("datadir")
-            .value_name("DIR")
-            .help("The location of the data directory to use.")
-            .takes_value(true)
-    )
-    // network related arguments
-    .arg(
-        Arg::with_name("auto-ports")
-            .long("auto-ports")
-            .short("a")
-            .help("Allow the OS to select from available TCP/UDP ports.")
-            .takes_value(false),
-    )
-    .arg(
-        Arg::with_name("listen-address")
-            .long("listen-address")
-            .value_name("ADDRESS")
-            .help("The address the client will listen for UDP and TCP connections.")
-            .default_value("127.0.0.1")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("port")
-            .long("port")
-            .value_name("PORT")
-            .help("The TCP/UDP port to listen on.")
-            .default_value("9000")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("discovery-port")
-            .long("discovery-port")
-            .value_name("PORT")
-            .help("The discovery UDP port.")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("maxpeers")
-            .long("maxpeers")
-            .help("The maximum number of peers.")
-            .default_value("10")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("boot-nodes")
-            .long("boot-nodes")
-            .allow_hyphen_values(true)
-            .value_name("ENR-LIST")
-            .help("One or more comma-delimited base64-encoded ENR's to bootstrap the p2p network.")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("disable-enr-auto-update")
-            .long("disable-enr-auto-update")
-            .short("-d")
-            .help("This fixes the ENR's IP/PORT to whatever is specified at startup.")
-            .takes_value(false),
-    )
-    .arg(
-        Arg::with_name("topics")
-            .long("topics")
-            .value_name("STRING")
-            .help("One or more comma-delimited gossipsub topics to subscribe to.")
-            .takes_value(true),
-    )
-        .arg(
-        Arg::with_name("libp2p-addresses")
-            .long("libp2p-addresses")
-            .value_name("MULTIADDR")
-            .help("One or more comma-delimited multiaddrs to manually connect to a libp2p peer without an ENR.")
-            .takes_value(true),
-        )
-    .arg(
-        Arg::with_name("debug-level")
-            .long("debug-level")
-            .value_name("LEVEL")
-            .help("Log filter.")
-            .takes_value(true)
-            .possible_values(&["info", "debug", "trace", "warn", "error", "crit"])
-            .default_value("info"),
-    )
-   .get_matches_from_safe(args.iter())
-        .unwrap_or_else(|e| {
-            eprintln!("{}", e);
-            process::exit(1);
-        })
 }
 
 pub fn unused_port(transport: &str) -> error::Result<u16> {

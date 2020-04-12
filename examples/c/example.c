@@ -53,7 +53,7 @@ int main (int argc, char** argv) {
 #else
         sleep(sleep_seconds);
 #endif
-        char* topic = "/eth2/beacon_block/ssz";
+        char* topic = "/mothra/topic1";
         int topic_length = (int)(strlen(topic));
         char r[3], data[50];
         sprintf(r, "%d",rand()%99);

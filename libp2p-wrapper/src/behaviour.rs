@@ -66,7 +66,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
 
         let identify = Identify::new(
             config.protocol_version.clone(),
-            config.agent_version(),
+            config.agent_version.clone(),
             local_key.public(),
         );
 

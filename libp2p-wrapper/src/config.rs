@@ -276,15 +276,7 @@ impl Config {
                     .map_err(|_| format!("Invalid debug-level: {:?}", debug_level_str))?;
         }
 
-        /*
-        * Zero-ports
-        *
-        * Replaces previously set flags.
-        * Libp2p and discovery ports are set explicitly by selecting
-        * a random free port so that we aren't needlessly updating ENR
-        * Discovery address is set to localhost by default.
-        */
-        if args.is_present("zero-ports") {
+        if args.is_present("auto-ports") {
             if self.enr_address == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))) {
                 self.enr_address = None
             }
@@ -384,6 +376,7 @@ fn matches(config: &Config, args: Vec<String>) -> ArgMatches<'static> {
             .help("Log filter.")
             .takes_value(true)
             .possible_values(&["info", "debug", "trace", "warn", "error", "crit"])
+            .default_value("info"),
     )
    .get_matches_from_safe(args.iter())
         .unwrap_or_else(|e| {

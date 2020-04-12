@@ -1,4 +1,4 @@
-use crate::{error, cli, config::Config};
+use crate::{config::Config, error};
 use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
@@ -8,13 +8,13 @@ use libp2p_wrapper::{
     RPCEvent, RPCRequest, RPCResponse, Swarm,
 };
 
+use clap::ArgMatches;
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 use tokio::timer::Delay;
-use clap::ArgMatches;
 
 /// The time in seconds that a peer will be banned and prevented from reconnecting.
 const BAN_PEER_TIMEOUT: u64 = 30;
@@ -82,7 +82,8 @@ impl Mothra {
         let enr_fork_id = [0u8; 32].to_vec();
 
         // launch libp2p Network
-        let (network_globals, libp2p) = LibP2PService::new(&mut config.network_config, enr_fork_id, log.clone())?;
+        let (network_globals, libp2p) =
+            LibP2PService::new(&mut config.network_config, enr_fork_id, log.clone())?;
 
         //TODO
         // for enr in load_dht::<T::Store, T::EthSpec>(store.clone()) {
@@ -120,9 +121,7 @@ impl Mothra {
     ) -> Config {
         // build NetworkConfig from args
         let mut config = Config::new(client_name, client_version, protocol_version);
-        config
-            .apply_cli_args(args)
-            .unwrap();
+        config.apply_cli_args(args).unwrap();
         config
     }
 }

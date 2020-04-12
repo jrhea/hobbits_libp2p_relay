@@ -1,6 +1,5 @@
 extern crate target_info;
-use target_info::Target;
-use crate::{Enr, error, DEFAULT_CLIENT_NAME};
+use crate::{error, Enr, DEFAULT_CLIENT_NAME};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
@@ -8,6 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::time::Duration;
+use target_info::Target;
 
 pub const GOSSIP_MAX_SIZE: usize = 1_048_576;
 
@@ -15,11 +15,10 @@ pub const GOSSIP_MAX_SIZE: usize = 1_048_576;
 #[serde(default)]
 /// Network configuration
 pub struct Config {
-
     /// The network agent version
     pub agent_version: String,
 
-    /// The protocol version 
+    /// The protocol version
     pub protocol_version: String,
 
     /// The network directory for mothra
@@ -87,7 +86,7 @@ impl Default for Config {
         );
 
         let mut network_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        network_dir.push(format!(".{}",DEFAULT_CLIENT_NAME));
+        network_dir.push(format!(".{}", DEFAULT_CLIENT_NAME));
         network_dir.push("network");
 
         // The function used to generate a gossipsub message id
@@ -124,7 +123,7 @@ impl Default for Config {
 
         Config {
             agent_version,
-            protocol_version: format!("{}/libp2p",DEFAULT_CLIENT_NAME),
+            protocol_version: format!("{}/libp2p", DEFAULT_CLIENT_NAME),
             network_dir,
             listen_address: "127.0.0.1".parse().expect("valid ip address"),
             libp2p_port: 9000,
@@ -164,7 +163,7 @@ pub fn unused_port(transport: &str) -> error::Result<u16> {
             })?
         }
         "udp" => {
-            let socket = std::net::UdpSocket::bind("127.0.0.1:0") 
+            let socket = std::net::UdpSocket::bind("127.0.0.1:0")
                 .map_err(|e| format!("Failed to create UDP socket to find unused port: {:?}", e))?;
             socket.local_addr().map_err(|e| {
                 format!(

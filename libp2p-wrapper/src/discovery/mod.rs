@@ -1,7 +1,9 @@
 ///! This manages the discovery and management of peers.
 mod enr_helpers;
 
-use crate::{error, NetworkConfig, Enr, EnrBitfield, EnrForkId, SubnetId, NetworkGlobals, PeerInfo};
+use crate::{
+    error, Enr, EnrBitfield, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo, SubnetId,
+};
 use enr_helpers::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
 use futures::prelude::*;
 use libp2p::core::{identity::Keypair, ConnectedPoint, Multiaddr, PeerId};
@@ -165,7 +167,7 @@ impl<TSubstream> Discovery<TSubstream> {
     }
 
     /// Adds/Removes a subnet from the ENR Bitfield
-    //  TODO: revisit bc it uses ssz 
+    //  TODO: revisit bc it uses ssz
     pub fn update_enr_bitfield(&mut self, subnet_id: SubnetId, value: bool) -> Result<(), String> {
         let id = subnet_id as usize;
 
@@ -175,7 +177,7 @@ impl<TSubstream> Discovery<TSubstream> {
             .ok_or_else(|| "ENR bitfield non-existent")?;
 
         let mut current_bitfield = EnrBitfield::from_ssz_bytes(bitfield_bytes)
-                .map_err(|_| "Could not decode local ENR SSZ bitfield")?;
+            .map_err(|_| "Could not decode local ENR SSZ bitfield")?;
 
         if id >= current_bitfield.len() {
             return Err(format!(
@@ -211,7 +213,6 @@ impl<TSubstream> Discovery<TSubstream> {
 
     /// Updates the `eth2` field of our local ENR.
     pub fn update_eth2_enr(&mut self, enr_fork_id: EnrForkId) {
-
         info!(self.log, "Updating the ENR fork version");
 
         let _ = self
@@ -259,9 +260,7 @@ impl<TSubstream> Discovery<TSubstream> {
 
             let subnet_predicate = move |enr: &Enr| {
                 if let Some(bitfield_bytes) = enr.get(BITFIELD_ENR_KEY) {
-                    let bitfield = match EnrBitfield::from_ssz_bytes(
-                        bitfield_bytes,
-                    ) {
+                    let bitfield = match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
                         Ok(v) => v,
                         Err(e) => {
                             warn!(log_clone, "Could not decode ENR bitfield for peer"; "peer_id" => format!("{}", enr.peer_id()), "error" => format!("{:?}", e));
@@ -354,17 +353,15 @@ where
         let mut peer_info = PeerInfo::new();
         if let Some(enr) = self.discovery.enr_of_peer(&peer_id) {
             let bitfield = match enr.get(BITFIELD_ENR_KEY) {
-                Some(bitfield_bytes) => {
-                    match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
-                        Ok(bitfield) => bitfield,
-                        Err(e) => {
-                            warn!(self.log, "Peer had invalid ENR bitfield"; 
+                Some(bitfield_bytes) => match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
+                    Ok(bitfield) => bitfield,
+                    Err(e) => {
+                        warn!(self.log, "Peer had invalid ENR bitfield"; 
                             "peer_id" => format!("{}", peer_id),
                             "error" => format!("{:?}", e));
-                            return;
-                        }
+                        return;
                     }
-                }
+                },
                 None => {
                     warn!(self.log, "Peer has no ENR bitfield"; 
                     "peer_id" => format!("{}", peer_id));

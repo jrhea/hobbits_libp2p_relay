@@ -233,7 +233,7 @@ where
                     });
                 }
             }
-            RPCEvent::Error(_, _) => { std::println!("handler.rs ERROR")}
+            RPCEvent::Error(_, _) => std::println!("handler.rs ERROR"),
         }
     }
 
@@ -307,7 +307,7 @@ where
                 } => match substream.poll() {
                     Ok(Async::Ready(response)) => {
                         if let Some(response) = response {
-                                  return Ok(Async::Ready(ProtocolsHandlerEvent::Custom(
+                            return Ok(Async::Ready(ProtocolsHandlerEvent::Custom(
                                 RPCEvent::Response(rpc_event.id(), response),
                             )));
                         } else {

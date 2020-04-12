@@ -2,7 +2,9 @@ use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::multiaddr::Protocol;
 use crate::rpc::RPCEvent;
 use crate::types::error;
-use crate::{NetworkConfig, NetworkGlobals, GossipTopic, TopicHash, EnrForkId};
+use crate::{EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash};
+use futures::prelude::*;
+use futures::Stream;
 use libp2p::core::{
     identity::Keypair,
     multiaddr::Multiaddr,
@@ -14,8 +16,6 @@ use libp2p::core::{
 };
 use libp2p::gossipsub::MessageId;
 use libp2p::{core, noise, secio, swarm::NetworkBehaviour, PeerId, Swarm, Transport};
-use futures::prelude::*;
-use futures::Stream;
 use slog::{crit, debug, error, info, trace, warn};
 use std::fs::File;
 use std::io::prelude::*;

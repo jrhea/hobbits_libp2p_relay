@@ -1,6 +1,9 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
-use crate::{error, Enr, EnrForkId, SubnetId, NetworkConfig, NetworkGlobals, TopicHash, GossipTopic};
+use crate::{
+    error, Enr, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, SubnetId, TopicHash,
+};
+use futures::prelude::*;
 use libp2p::{
     core::identity::Keypair,
     discv5::Discv5Event,
@@ -10,12 +13,9 @@ use libp2p::{
     tokio_io::{AsyncRead, AsyncWrite},
     NetworkBehaviour, PeerId,
 };
-use futures::prelude::*;
 use lru::LruCache;
 use slog::{crit, debug, o, warn};
 use std::sync::Arc;
-
-
 
 const MAX_IDENTIFY_ADDRESSES: usize = 20;
 
@@ -133,7 +133,7 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         }
     }
 
-    /// Forwards a message that is waiting in gossipsub's mcache. 
+    /// Forwards a message that is waiting in gossipsub's mcache.
     pub fn propagate_message(&mut self, propagation_source: &PeerId, message_id: MessageId) {
         self.gossipsub
             .propagate_message(&message_id, propagation_source);
@@ -204,8 +204,8 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
 
         // re-subscribe modifying the fork version
         for topic in subscribed_topics {
-           // *topic.digest() = enr_fork_id.fork_digest;
-           //TODO: fix this
+            // *topic.digest() = enr_fork_id.fork_digest;
+            //TODO: fix this
             self.subscribe(topic);
         }
 
@@ -215,8 +215,8 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
 }
 
 // Implement the NetworkBehaviourEventProcess trait so that we can derive NetworkBehaviour for Behaviour
-impl<TSubstream: AsyncRead + AsyncWrite>
-    NetworkBehaviourEventProcess<GossipsubEvent> for Behaviour<TSubstream>
+impl<TSubstream: AsyncRead + AsyncWrite> NetworkBehaviourEventProcess<GossipsubEvent>
+    for Behaviour<TSubstream>
 {
     fn inject_event(&mut self, event: GossipsubEvent) {
         match event {
@@ -228,10 +228,10 @@ impl<TSubstream: AsyncRead + AsyncWrite>
                         id,
                         source: propagation_source,
                         topics: gs_msg.topics,
-                        message: gs_msg.data
+                        message: gs_msg.data,
                     });
                 } else {
-                     warn!(self.log, "A duplicate gossipsub message was received"; "message" => format!("{:?}", gs_msg));
+                    warn!(self.log, "A duplicate gossipsub message was received"; "message" => format!("{:?}", gs_msg));
                 }
             }
             GossipsubEvent::Subscribed { peer_id, topic } => {
@@ -243,8 +243,8 @@ impl<TSubstream: AsyncRead + AsyncWrite>
     }
 }
 
-impl<TSubstream: AsyncRead + AsyncWrite>
-    NetworkBehaviourEventProcess<RPCMessage> for Behaviour<TSubstream>
+impl<TSubstream: AsyncRead + AsyncWrite> NetworkBehaviourEventProcess<RPCMessage>
+    for Behaviour<TSubstream>
 {
     fn inject_event(&mut self, event: RPCMessage) {
         match event {

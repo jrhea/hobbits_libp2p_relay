@@ -22,7 +22,6 @@ mod handler;
 pub mod methods;
 mod protocol;
 
-
 /// The return type used in the behaviour and the resultant event from the protocols handler.
 #[derive(Debug)]
 pub enum RPCEvent {

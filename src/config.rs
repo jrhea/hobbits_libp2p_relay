@@ -1,17 +1,15 @@
-
-use libp2p_wrapper::{NetworkConfig, unused_port, DEFAULT_CLIENT_NAME, Multiaddr, Enr};
-use std::path::PathBuf;
 use clap::ArgMatches;
+use libp2p_wrapper::{unused_port, Enr, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
+use std::path::PathBuf;
 
 pub const DEFAULT_DEBUG_LEVEL: &str = "info";
 
 /// Mothra configuration
 pub struct Config {
-
     /// The client name
     pub client_name: String,
 
-    /// The client version 
+    /// The client version
     pub client_version: String,
 
     /// The log debug level
@@ -35,18 +33,27 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn new(client_name: Option<String>, client_version: Option<String>, protocol_version: Option<String>) -> Self {
+    pub fn new(
+        client_name: Option<String>,
+        client_version: Option<String>,
+        protocol_version: Option<String>,
+    ) -> Self {
         let mut config = Config::default();
         // update self.client_name if client_name is not None
-        if let Some(x) = client_name { config.client_name = x; }
+        if let Some(x) = client_name {
+            config.client_name = x;
+        }
         // update self.client_version if client_version is not None
-        if let Some(x) = client_version { config.client_version = x; }
+        if let Some(x) = client_version {
+            config.client_version = x;
+        }
         // update self.network_config.protocol_version if protocol_version is not None
-        if let Some(x) = protocol_version { config.network_config.protocol_version = x; }
+        if let Some(x) = protocol_version {
+            config.network_config.protocol_version = x;
+        }
         config
     }
     pub fn apply_cli_args(&mut self, args: &ArgMatches) -> Result<(), String> {
-
         // If a `datadir` has been specified, set the network dir to be inside it.
         if let Some(dir) = args.value_of("datadir") {
             self.network_config.network_dir = PathBuf::from(dir).join("network");
@@ -70,17 +77,17 @@ impl Config {
             let port = port_str
                 .parse::<u16>()
                 .map_err(|_| format!("Invalid port: {}", port_str))?;
-                self.network_config.libp2p_port = port;
-                self.network_config.discovery_port = port;
-                self.network_config.enr_tcp_port = Some(port);
-                self.network_config.enr_udp_port = Some(port);
+            self.network_config.libp2p_port = port;
+            self.network_config.discovery_port = port;
+            self.network_config.enr_tcp_port = Some(port);
+            self.network_config.enr_udp_port = Some(port);
         }
 
         if let Some(disc_port_str) = args.value_of("discovery-port") {
             self.network_config.discovery_port = disc_port_str
                 .parse::<u16>()
                 .map_err(|_| format!("Invalid discovery port: {}", disc_port_str))?;
-                self.network_config.enr_udp_port = Some(self.network_config.discovery_port);
+            self.network_config.enr_udp_port = Some(self.network_config.discovery_port);
         }
 
         if let Some(boot_enr_str) = args.value_of("boot-nodes") {
@@ -116,7 +123,7 @@ impl Config {
                     .map_err(|_| format!("Invalid discovery port: {}", enr_udp_port_str))?,
             );
         }
-    
+
         if let Some(enr_tcp_port_str) = args.value_of("enr-tcp-port") {
             self.network_config.enr_tcp_port = Some(
                 enr_tcp_port_str
@@ -135,18 +142,20 @@ impl Config {
 
         if let Some(debug_level_str) = args.value_of("debug-level") {
             self.debug_level = debug_level_str
-                    .parse()
-                    .map_err(|_| format!("Invalid debug-level: {:?}", debug_level_str))?;
+                .parse()
+                .map_err(|_| format!("Invalid debug-level: {:?}", debug_level_str))?;
         }
 
         if args.is_present("auto-ports") {
-            if self.network_config.enr_address == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))) {
+            if self.network_config.enr_address
+                == Some(std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)))
+            {
                 self.network_config.enr_address = None
             }
             self.network_config.libp2p_port =
                 unused_port("tcp").map_err(|e| format!("Failed to get port for libp2p: {}", e))?;
-            self.network_config.discovery_port =
-                unused_port("udp").map_err(|e| format!("Failed to get port for discovery: {}", e))?;
+            self.network_config.discovery_port = unused_port("udp")
+                .map_err(|e| format!("Failed to get port for discovery: {}", e))?;
         }
         Ok(())
     }

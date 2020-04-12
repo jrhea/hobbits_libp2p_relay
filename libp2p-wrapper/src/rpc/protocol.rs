@@ -35,9 +35,7 @@ impl UpgradeInfo for RPCProtocol {
     type InfoIter = Vec<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        vec![
-            ProtocolId::new("hello", "1", "ssz"),
-        ]
+        vec![ProtocolId::new("hello", "1", "ssz")]
     }
 }
 
@@ -115,7 +113,8 @@ where
     ) -> Self::Future {
         match protocol.encoding.as_str() {
             "ssz" | _ => {
-                let serenity_codec = BaseInboundCodec::new(SerenityInboundCodec::new(protocol, MAX_RPC_SIZE));
+                let serenity_codec =
+                    BaseInboundCodec::new(SerenityInboundCodec::new(protocol, MAX_RPC_SIZE));
                 let codec = InboundCodec::Serenity(serenity_codec);
                 let mut timed_socket = TimeoutStream::new(socket);
                 timed_socket.set_read_timeout(Some(Duration::from_secs(TTFB_TIMEOUT)));
@@ -161,13 +160,11 @@ impl RPCRequest {
     pub fn supported_protocols(&self) -> Vec<ProtocolId> {
         match self {
             // add more protocols when versions/encodings are supported
-            RPCRequest::Message(_) => vec![
-                ProtocolId::new("hello", "1", "ssz"),
-            ],
+            RPCRequest::Message(_) => vec![ProtocolId::new("hello", "1", "ssz")],
         }
     }
 
-     /// This specifies whether a stream should remain open and await a response, given a request.
+    /// This specifies whether a stream should remain open and await a response, given a request.
     pub fn expect_response(&self) -> bool {
         match self {
             RPCRequest::Message(_) => true,
@@ -195,7 +192,8 @@ where
     ) -> Self::Future {
         match protocol.encoding.as_str() {
             "ssz" | _ => {
-                let serenity_codec = BaseOutboundCodec::new(SerenityOutboundCodec::new(protocol, MAX_RPC_SIZE));
+                let serenity_codec =
+                    BaseOutboundCodec::new(SerenityOutboundCodec::new(protocol, MAX_RPC_SIZE));
                 let codec = OutboundCodec::Serenity(serenity_codec);
                 Framed::new(socket, codec).send(self)
             }

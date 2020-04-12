@@ -1,5 +1,5 @@
 use super::ENR_FILENAME;
-use crate::{NetworkConfig, Enr, EnrBitfield, EnrForkId};
+use crate::{Enr, EnrBitfield, EnrForkId, NetworkConfig};
 use libp2p::core::identity::Keypair;
 use libp2p::discv5::enr::{CombinedKey, EnrBuilder};
 use slog::{debug, warn};
@@ -97,10 +97,10 @@ fn build_enr(
     builder.add_value(ETH2_ENR_KEY.into(), enr_fork_id);
 
     // set the "attnets" field on our ENR
-     // TODO: fix this
+    // TODO: fix this
     let bitfield = EnrBitfield::new();
     builder.add_value(BITFIELD_ENR_KEY.into(), bitfield.as_ssz_bytes());
-   
+
     builder
         .tcp(config.libp2p_port)
         .build(enr_key)

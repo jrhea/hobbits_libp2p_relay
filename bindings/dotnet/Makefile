@@ -5,7 +5,7 @@ include ../../config.mk
 .PHONY : dotnet-bindings clean
 
 dotnet-bindings:
-	dotnet build Mothra.csproj -o $(OUT_DIR)/dotnet
+	dotnet build Mothra.csproj -o $(DOUT_DIR)
 
 clean:
-	rm -rf $(OUT_DIR)/dotnet
+	rm -rf $(DOUT_DIR)

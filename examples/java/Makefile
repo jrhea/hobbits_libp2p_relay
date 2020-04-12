@@ -2,11 +2,12 @@ SHELL := /bin/sh
 
 include ../../config.mk
 
+.PHONY : java-examples clean
+
 java-examples: Example.class
 
 %.class:
-	javac -cp $(OUT_DIR)/mothra.jar $*.java -d $(OUT_DIR)/
+	javac -cp $(JOUT_DIR)/mothra.jar $*.java -d $(JOUT_DIR)/
 
 clean:
-	rm -rf $(OUT_DIR)/*.class
-	rm -rf $(OUT_DIR)/*.jar
+	rm -rf $(JOUT_DIR)

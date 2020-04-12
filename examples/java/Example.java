@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import net.p2p.Mothra;
+import p2p.mothra.Mothra;
 
 public class Example {
     public static void main(String[] args) throws InterruptedException {

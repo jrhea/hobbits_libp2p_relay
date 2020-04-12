@@ -1,4 +1,4 @@
-package net.p2p;
+package p2p.mothra;
 
 import java.util.Objects;
 import java.util.function.BiFunction;

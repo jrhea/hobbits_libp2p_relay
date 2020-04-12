@@ -65,7 +65,7 @@ fn on_discovered_peer(peer: String) {
 fn on_receive_gossip(topic: String, data: Vec<u8>) {
     println!("Rust: received gossip");
     println!("topic={:?}", topic);
-    println!("data={:?}", data);
+    println!("data={:?}", String::from_utf8_lossy(&data));
 }
 
 fn on_receive_rpc(method: String, req_resp: u8, peer: String, data: Vec<u8>) {
@@ -73,5 +73,5 @@ fn on_receive_rpc(method: String, req_resp: u8, peer: String, data: Vec<u8>) {
     println!("method={:?}", method);
     println!("req_resp={:?}", req_resp);
     println!("peer={:?}", peer);
-    println!("data={:?}", data);
+    println!("data={:?}", String::from_utf8_lossy(&data));
 }

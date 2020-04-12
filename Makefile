@@ -2,20 +2,20 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY: all mash lib rust c dotnet java ffi dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples rust-lint clean
+.PHONY: all mash core c dotnet java dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples lint clean
 
 .DEFAULT: all
 
-all: lib rust c dotnet java
+all: core c dotnet java
 
-mash: clean rust c dotnet java
+mash: clean core c dotnet java
 
-lib:
+core:
 	@echo ""
-	@echo Building Mothra library
+	@echo Building Mothra core
 	cargo build $(BUILD_MODE) --target-dir=$(OUT_DIR)
-
-rust: rust-examples
+	ln -sf $(OUT_DIR)/$(TARGET_NAME)/libmothra.$(EXT) $(OUT_DIR)/
+	ln -sf $(OUT_DIR)/$(TARGET_NAME)/rust-example $(OUT_DIR)/
 
 c: c-examples
 
@@ -23,48 +23,42 @@ dotnet: dotnet-examples
 
 java: java-examples
 
+dotnet-bindings: core
+	@echo ""
+	@echo Building .Net bindings
+	cd $(DBIND_DIR) && make $@
+
+java-bindings: core
+	@echo ""
+	@echo Building Java bindings
+	cd $(JBIND_DIR) && make $@
+
 rust-examples:
 	@echo ""
 	@echo Building Rust examples
-	cd $(EXAMPLES_DIR) && make $@
+	cd $(REXAMPLES_DIR) && cargo build $(BUILD_MODE) --target-dir=$(OUT_DIR)
 
-c-examples: ffi
+c-examples: core
 	@echo ""
 	@echo Building C examples
-	cd $(EXAMPLES_DIR) && make $@
+	cd $(CEXAMPLES_DIR) && make $@
 
 dotnet-examples: dotnet-bindings
 	@echo ""
 	@echo Building .Net examples
-	cd $(EXAMPLES_DIR) && make $@
+	cd $(DEXAMPLES_DIR) && make $@
 
 java-examples: java-bindings
 	@echo ""
 	@echo Building Java examples
-	cd $(EXAMPLES_DIR) && make $@
+	cd $(JEXAMPLES_DIR) && make $@
 
-ffi:
-	@echo ""
-	@echo Building FFI
-	cd $(FFI_DIR) && make $@
-
-dotnet-bindings: ffi
-	@echo ""
-	@echo Building .Net bindings
-	cd $(BIND_DIR) && make $@
-
-java-bindings: ffi
-	@echo ""
-	@echo Building Java bindings
-	cd $(BIND_DIR) && make $@
-
-rust-lint: 
+lint: 
 	cargo fmt
 	cargo clippy
-	cd $(FFI_DIR) && make $@
 
 clean:
-	cargo clean --target-dir=$(OUT_DIR)
-	cd $(FFI_DIR) && make $@
-	cd $(BIND_DIR) && make $@
-	cd $(EXAMPLES_DIR) && make $@
+	rm -rf $(COUT_DIR)
+	rm -rf $(DOUT_DIR)
+	rm -rf $(JOUT_DIR)
+	rm -rf $(OUT_DIR)/$(TARGET_NAME)

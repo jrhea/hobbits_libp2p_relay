@@ -5,7 +5,7 @@ include ../../config.mk
 .PHONY : dotnet-examples clean
 
 dotnet-examples:
-	dotnet build Example.csproj -o $(OUT_DIR)/dotnet
+	dotnet build Example.csproj -o $(DOUT_DIR)
 
 clean:
-	rm -rf $(OUT_DIR)/dotnet
+	rm -rf $(DOUT_DIR)

@@ -2,8 +2,8 @@ use crate::{config::Config, error};
 use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
-use libp2p_wrapper::Service as LibP2PService;
-use libp2p_wrapper::{
+use network::Service as LibP2PService;
+use network::{
     GossipTopic, Libp2pEvent, MessageId, NetworkConfig, NetworkGlobals, PeerId, RPCErrorResponse,
     RPCEvent, RPCRequest, RPCResponse, Swarm,
 };

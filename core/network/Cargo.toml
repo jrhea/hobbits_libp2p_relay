@@ -1,12 +1,14 @@
 [package]
-name = "libp2p-wrapper"
+name = "mothra-network"
 version = "0.1.0"
-authors = ["Age Manning <Age@AgeManning.com>"]
+authors = ["Age Manning <Age@AgeManning.com>", "Jonny Rhea <jonny.rhea@consensys.net"]
 edition = "2018"
+description = "Mothra p2p network layer."
+license = "Apache-2.0"
 
 [dependencies]
-libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "4e3003d5283040fee10da1299252dd060a838d97" }
-types = "0.2.0"
+libp2p =  "0.13.2"
+types = ">= 0.1.2, <= 0.2.0"
 eth2_ssz = "0.1.2"
 hex = "0.3"
 serde = "1.0.102"

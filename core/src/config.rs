@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use libp2p_wrapper::{unused_port, Enr, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
+use network::{unused_port, Enr, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
 use std::path::PathBuf;
 
 pub const DEFAULT_DEBUG_LEVEL: &str = "info";

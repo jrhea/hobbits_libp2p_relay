@@ -1,12 +1,13 @@
 [workspace]
 members = [
     "core/",
-    "core/libp2p-wrapper",
+    "core/network",
     "core/ffi",
     "examples/rust"
 ]
 
 [patch.crates-io]
+libp2p =  { git = "https://github.com/SigP/rust-libp2p", rev = "4e3003d5283040fee10da1299252dd060a838d97", package = "libp2p"}
 tree_hash = { git = "https://github.com/sigp/lighthouse", rev = "d7e29382967c16a7a4ce73d1672867523287402b", package = "tree_hash" }
 tree_hash_derive = { git = "https://github.com/sigp/lighthouse", rev = "d7e29382967c16a7a4ce73d1672867523287402b", package = "tree_hash_derive" }
 eth2_ssz = { git = "https://github.com/sigp/lighthouse", rev = "d7e29382967c16a7a4ce73d1672867523287402b", package = "eth2_ssz" }

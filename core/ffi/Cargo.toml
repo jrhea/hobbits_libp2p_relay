@@ -3,13 +3,11 @@ name = "mothra-ffi"
 version = "0.1.0"
 authors = ["Jonny Rhea <jonny.rhea@consensys.net>"]
 edition = "2018"
-include = [
-    "**/*.rs",
-    "Cargo.toml"
-]
+description = "Foreign function interface to Mothra."
+license = "Apache-2.0"
 
 [dependencies]
-mothra =  { path = "../" }
+mothra =  { path = "../", version = "0.1.0" }
 cast = "0.2.2"
 tokio = "0.1.22"
 slog = { version = "2.5.2" , features = ["max_level_trace"] }

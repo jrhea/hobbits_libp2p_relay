@@ -1,14 +1,34 @@
 extern crate target_info;
-
-use target_info::Target;
+use clap::{App, AppSettings, Arg, ArgMatches};
 use std::{thread, time};
 use tokio::runtime::Runtime;
 use slog::{debug, info, o, warn, Drain};
-use mothra::{Mothra, gossip};
+use mothra::{Mothra, gossip, cli_app};
 
 fn main() {
     let start = time::Instant::now();
-    let args = std::env::args().collect();
+    // Parse the CLI parameters.
+    let matches = App::new("rust-example")
+        .version(clap::crate_version!())
+        .author("Jonny Rhea")
+        .about("Mothra example app")
+        .arg(
+            Arg::with_name("foo")
+                .long("foo")
+                .short("f")
+                .value_name("FOO")
+                .help(
+                    "This is a dummy option.",
+                )
+                .takes_value(false),
+        )
+        .subcommand(cli_app())
+        .get_matches();
+    
+    if matches.is_present("foo") {
+        println!("Foo flag found");
+    }
+
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
@@ -17,7 +37,7 @@ fn main() {
         Some("rust-example".into()),
         Some(format!("v{}-unstable",env!("CARGO_PKG_VERSION"))),
         Some("rust-example/libp2p".into()),
-        args);
+        &matches.subcommand_matches("mothra").unwrap());
     let (network_globals, network_send, network_exit, network_logger) = Mothra::new(
             config,
             &executor,

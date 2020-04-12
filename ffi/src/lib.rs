@@ -1,9 +1,9 @@
 use cast::i16;
-use mothra::{gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage};
+use mothra::{gossip, rpc_request, rpc_response, cli_app, Mothra, NetworkGlobals, NetworkMessage};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
-use std::{slice, str};
+use std::{slice, str, process};
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
 
@@ -132,7 +132,14 @@ pub unsafe extern "C" fn network_start(
     let runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
         .unwrap();
-    let config = Mothra::get_config(client_name, client_version, protocol_version, args_vec);
+    let matches = cli_app()
+    .get_matches_from_safe(args_vec.iter())
+    .unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        process::exit(1);
+    });
+    
+    let config = Mothra::get_config(client_name, client_version, protocol_version, &matches);
     let (network_globals, network_send, network_exit, log) = Mothra::new(
         config,
         &runtime.executor(),

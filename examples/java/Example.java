@@ -27,7 +27,7 @@ public class Example {
         Executors.newSingleThreadExecutor().execute(run);
         Scanner scanner = new Scanner(System.in);
         while(true){
-            System.out.print("Select RPC or GOSSIP: ");
+            System.out.print("Select RPC or GOSSIP: \n");
             String messageType = scanner.next();
             if(messageType.equals("GOSSIP")){
                 System.out.print("Enter a message to GOSSIP: ");

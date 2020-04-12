@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 use tokio::timer::Delay;
+use clap::ArgMatches;
 
 /// The time in seconds that a peer will be banned and prevented from reconnecting.
 const BAN_PEER_TIMEOUT: u64 = 30;
@@ -115,7 +116,7 @@ impl Mothra {
         client_name: Option<String>,
         client_version: Option<String>,
         protocol_version: Option<String>,
-        args: Vec<String>,
+        args: &ArgMatches,
     ) -> Config {
         // build NetworkConfig from args
         let mut config = Config::new(client_name, client_version, protocol_version);

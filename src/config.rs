@@ -1,9 +1,7 @@
 
 use libp2p_wrapper::{NetworkConfig, unused_port, DEFAULT_CLIENT_NAME, Multiaddr, Enr};
-use clap:: ArgMatches;
 use std::path::PathBuf;
-use std::process;
-use crate::cli::cli_app;
+use clap::ArgMatches;
 
 pub const DEFAULT_DEBUG_LEVEL: &str = "info";
 
@@ -47,13 +45,8 @@ impl Config {
         if let Some(x) = protocol_version { config.network_config.protocol_version = x; }
         config
     }
-    pub fn apply_cli_args(&mut self, cli_args: Vec<String>) -> Result<(), String> {
-        let args = cli_app()
-        .get_matches_from_safe(cli_args.iter())
-        .unwrap_or_else(|e| {
-            eprintln!("{}", e);
-            process::exit(1);
-        });
+    pub fn apply_cli_args(&mut self, args: &ArgMatches) -> Result<(), String> {
+
         // If a `datadir` has been specified, set the network dir to be inside it.
         if let Some(dir) = args.value_of("datadir") {
             self.network_config.network_dir = PathBuf::from(dir).join("network");

@@ -1,5 +1,7 @@
 use cast::i16;
+use env_logger::Env;
 use mothra::{cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage};
+use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
@@ -140,12 +142,29 @@ pub unsafe extern "C" fn network_start(
         });
 
     let config = Mothra::get_config(client_name, client_version, protocol_version, &matches);
-    let (network_globals, network_send, network_exit, log) = Mothra::new(
+    // configure logging
+    env_logger::Builder::from_env(Env::default()).init();
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::CompactFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build();
+    let drain = match config.debug_level.as_str() {
+        "info" => drain.filter_level(Level::Info),
+        "debug" => drain.filter_level(Level::Debug),
+        "trace" => drain.filter_level(Level::Trace),
+        "warn" => drain.filter_level(Level::Warning),
+        "error" => drain.filter_level(Level::Error),
+        "crit" => drain.filter_level(Level::Critical),
+        _ => drain.filter_level(Level::Info),
+    };
+    let slog = Logger::root(drain.fuse(), o!());
+    let log = slog.new(o!("FFI" => "Mothra"));
+    let (network_globals, network_send, network_exit) = Mothra::new(
         config,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,
         receive_rpc,
+        log.clone(),
     )
     .unwrap();
     CONTEXT.push(Context {
@@ -153,7 +172,7 @@ pub unsafe extern "C" fn network_start(
         network_globals,
         network_send,
         network_exit,
-        log,
+        log: log.clone(),
     });
 }
 

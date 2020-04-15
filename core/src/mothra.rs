@@ -1,5 +1,4 @@
 use crate::{config::Config, error};
-use env_logger::Env;
 use futures::prelude::*;
 use futures::Stream;
 use network::Service as LibP2PService;
@@ -51,29 +50,12 @@ impl Mothra {
         discovered_peer: DiscoveredPeerType,
         receive_gossip: ReceiveGossipType,
         receive_rpc: ReceiveRpcType,
+        log: slog::Logger,
     ) -> error::Result<(
         Arc<NetworkGlobals>,
         mpsc::UnboundedSender<NetworkMessage>,
         oneshot::Sender<()>,
-        slog::Logger,
     )> {
-        // configure logging
-        env_logger::Builder::from_env(Env::default()).init();
-        let decorator = slog_term::TermDecorator::new().build();
-        let drain = slog_term::CompactFormat::new(decorator).build().fuse();
-        let drain = slog_async::Async::new(drain).build();
-        let drain = match config.debug_level.as_str() {
-            "info" => drain.filter_level(Level::Info),
-            "debug" => drain.filter_level(Level::Debug),
-            "trace" => drain.filter_level(Level::Trace),
-            "warn" => drain.filter_level(Level::Warning),
-            "error" => drain.filter_level(Level::Error),
-            "crit" => drain.filter_level(Level::Critical),
-            _ => drain.filter_level(Level::Info),
-        };
-        let slog = Logger::root(drain.fuse(), o!());
-        let log = slog.new(o!("Mothra" => "Network"));
-
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
 
@@ -110,7 +92,7 @@ impl Mothra {
 
         let network_exit = spawn_mothra(network_service, &executor)?;
 
-        Ok((network_globals, network_send, network_exit, log.clone()))
+        Ok((network_globals, network_send, network_exit))
     }
 
     pub fn get_config(

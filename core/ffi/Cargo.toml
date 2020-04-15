@@ -11,7 +11,10 @@ mothra =  { path = "../", version = "0.1.0" }
 cast = "0.2.2"
 tokio = "0.1.22"
 tokio-compat = { version = "0.1.5", features = ["rt-full"] }
+slog-term = "^2.4.0"
+slog-async = "^2.3.0"
 slog = { version = "2.5.2" , features = ["max_level_trace"] }
+env_logger = "0.6.0"
 
 [lib]
 name = "mothra"

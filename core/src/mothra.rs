@@ -12,16 +12,16 @@ use clap::ArgMatches;
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::runtime::TaskExecutor;
 use tokio::sync::{mpsc, oneshot};
 use tokio::timer::Delay;
+use tokio_compat::runtime::TaskExecutor;
 
 /// The time in seconds that a peer will be banned and prevented from reconnecting.
 const BAN_PEER_TIMEOUT: u64 = 30;
 
-type DiscoveredPeerType = fn(peer: String);
-type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
-type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
+pub type DiscoveredPeerType = fn(peer: String);
+pub type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
+pub type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 /// Handles communication between calling code and the `libp2p_p2p` service.
 pub struct Mothra {

@@ -4,8 +4,8 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
 use std::{process, slice, str};
-use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
+use tokio_compat::runtime::Runtime;
 
 struct Context {
     runtime: Runtime,

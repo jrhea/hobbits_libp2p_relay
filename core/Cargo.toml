@@ -20,6 +20,7 @@ clap = "2.33.0"
 serde = "1.0.102"
 serde_derive = "1.0.102"
 tokio = "0.1.22"
+tokio-compat = { version = "0.1.5", features = ["rt-full"] }
 futures = "0.1.29"
 exit-future = "0.1.4"
 error-chain = "0.12.0"

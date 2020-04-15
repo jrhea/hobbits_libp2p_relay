@@ -3,7 +3,7 @@ use clap::{App, AppSettings, Arg, ArgMatches};
 use mothra::{cli_app, gossip, Mothra};
 use slog::{debug, info, o, warn, Drain};
 use std::{thread, time};
-use tokio::runtime::Runtime;
+use tokio_compat::runtime::Runtime;
 
 fn main() {
     let start = time::Instant::now();

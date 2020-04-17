@@ -158,8 +158,12 @@ pub unsafe extern "C" fn network_start(
     };
     let slog = Logger::root(drain.fuse(), o!());
     let log = slog.new(o!("FFI" => "Mothra"));
+    // build the current enr_fork_id for adding to our local ENR
+    //TODO
+    let enr_fork_id = [0u8; 32].to_vec();
     let (network_globals, network_send, network_exit) = Mothra::new(
         config,
+        enr_fork_id,
         &runtime.executor(),
         discovered_peer,
         receive_gossip,

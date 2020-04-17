@@ -46,6 +46,7 @@ pub struct Mothra {
 impl Mothra {
     pub fn new(
         mut config: Config,
+        enr_fork_id: Vec<u8>,
         executor: &TaskExecutor,
         discovered_peer: DiscoveredPeerType,
         receive_gossip: ReceiveGossipType,
@@ -58,10 +59,6 @@ impl Mothra {
     )> {
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
-
-        // build the current enr_fork_id for adding to our local ENR
-        //TODO
-        let enr_fork_id = [0u8; 32].to_vec();
 
         // launch libp2p Network
         let (network_globals, libp2p) =

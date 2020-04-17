@@ -54,8 +54,10 @@ fn main() {
     };
     let slog = Logger::root(drain.fuse(), o!());
     let log = slog.new(o!("Rust-Example" => "Mothra"));
+    let enr_fork_id = [0u8; 32].to_vec();
     let (network_globals, network_send, network_exit) = Mothra::new(
         config,
+        enr_fork_id,
         &executor,
         on_discovered_peer,
         on_receive_gossip,

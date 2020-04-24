@@ -1,7 +1,7 @@
 use super::ENR_FILENAME;
-use crate::{Enr, EnrBitfield, EnrForkId, NetworkConfig};
+use crate::{Enr, CombinedKey, EnrForkId, NetworkConfig};
 use libp2p::core::identity::Keypair;
-use libp2p::discv5::enr::{CombinedKey, EnrBuilder};
+use libp2p::discv5::enr::EnrBuilder;
 use slog::{debug, warn};
 //use eth2_ssz::Encode;
 use std::convert::TryInto;
@@ -25,7 +25,7 @@ pub fn build_or_load_enr(
     config: &NetworkConfig,
     enr_fork_id: EnrForkId,
     log: &slog::Logger,
-) -> Result<Enr, String> {
+) -> Result<Enr<CombinedKey>, String> {
     // Build the local ENR.
     // Note: Discovery should update the ENR record's IP to the external IP as seen by the
     // majority of our peers, if the CLI doesn't expressly forbid it.
@@ -77,7 +77,7 @@ fn build_enr(
     enr_key: &CombinedKey,
     config: &NetworkConfig,
     enr_fork_id: EnrForkId,
-) -> Result<Enr, String> {
+) -> Result<Enr<CombinedKey>, String> {
     let mut builder = EnrBuilder::new("v4");
     if let Some(enr_address) = config.enr_address {
         builder.ip(enr_address);
@@ -108,7 +108,7 @@ fn build_enr(
 
 /// Defines the conditions under which we use the locally built ENR or the one stored on disk.
 /// If this function returns true, we use the `disk_enr`.
-fn compare_enr(local_enr: &Enr, disk_enr: &Enr) -> bool {
+fn compare_enr(local_enr: &Enr<CombinedKey>, disk_enr: &Enr<CombinedKey>) -> bool {
     // take preference over disk_enr address if one is not specified
     (local_enr.ip().is_none() || local_enr.ip() == disk_enr.ip())
         // tcp ports must match
@@ -123,7 +123,7 @@ fn compare_enr(local_enr: &Enr, disk_enr: &Enr) -> bool {
 }
 
 /// Saves an ENR to disk
-pub fn save_enr_to_disk(dir: &Path, enr: &Enr, log: &slog::Logger) {
+pub fn save_enr_to_disk(dir: &Path, enr: &Enr<CombinedKey>, log: &slog::Logger) {
     let _ = std::fs::create_dir_all(dir);
     match File::create(dir.join(Path::new(ENR_FILENAME)))
         .and_then(|mut f| f.write_all(&enr.to_base64().as_bytes()))

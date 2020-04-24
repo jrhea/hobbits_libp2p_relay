@@ -128,7 +128,7 @@ fn spawn_mothra(
         // perform termination tasks when the network is being shutdown
         if let Ok(Async::Ready(_)) | Err(_) = exit_rx.poll() {
                     // network thread is terminating TODO
-                    // let enrs: Vec<Enr> = service.libp2p.swarm.enr_entries().cloned().collect();
+                    // let enrs: Vec<Enr<CombinedKey>> = service.libp2p.swarm.enr_entries().cloned().collect();
                     // debug!(
                     //     log,
                     //     "Persisting DHT to store";

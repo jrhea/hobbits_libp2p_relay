@@ -2,12 +2,12 @@
 mod enr_helpers;
 
 use crate::{
-    error, Enr, EnrBitfield, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo, SubnetId,
+    error, Enr, CombinedKey, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo
 };
 use enr_helpers::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
 use futures::prelude::*;
 use libp2p::core::{identity::Keypair, ConnectedPoint, Multiaddr, PeerId};
-use libp2p::discv5::enr::NodeId;
+use libp2p::discv5::enr::{NodeId};
 use libp2p::discv5::{Discv5, Discv5Event};
 use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
@@ -26,8 +26,6 @@ const MAX_TIME_BETWEEN_PEER_SEARCHES: u64 = 120;
 const INITIAL_SEARCH_DELAY: u64 = 5;
 /// Local ENR storage filename.
 const ENR_FILENAME: &str = "enr.dat";
-/// Number of peers we'd like to have connected to a given long-lived subnet.
-const TARGET_SUBNET_PEERS: u64 = 3;
 
 ///  This provides peer management and discovery using the Discv5
 /// libp2p protocol.
@@ -127,7 +125,7 @@ impl<TSubstream> Discovery<TSubstream> {
     }
 
     /// Return the nodes local ENR.
-    pub fn local_enr(&self) -> &Enr {
+    pub fn local_enr(&self) -> &Enr<CombinedKey> {
         self.discovery.local_enr()
     }
 
@@ -139,7 +137,7 @@ impl<TSubstream> Discovery<TSubstream> {
     }
 
     /// Add an ENR to the routing table of the discovery mechanism.
-    pub fn add_enr(&mut self, enr: Enr) {
+    pub fn add_enr(&mut self, enr: Enr<CombinedKey>) {
         let _ = self.discovery.add_enr(enr).map_err(|e| {
             warn!(
                 self.log,
@@ -161,7 +159,7 @@ impl<TSubstream> Discovery<TSubstream> {
     }
 
     /// Returns an iterator over all enr entries in the DHT.
-    pub fn enr_entries(&mut self) -> impl Iterator<Item = &Enr> {
+    pub fn enr_entries(&mut self) -> impl Iterator<Item = &Enr<CombinedKey>> {
         self.discovery.enr_entries()
     }
 
@@ -199,15 +197,15 @@ impl<TSubstream> Discovery<TSubstream> {
     /// ENR.
     fn start_query<F>(&mut self, enr_predicate: F, num_nodes: usize)
     where
-        F: Fn(&Enr) -> bool + Send + 'static + Clone,
+        F: Fn(&Enr<CombinedKey>) -> bool + Send + 'static + Clone,
     {
         // pick a random NodeId
         let random_node = NodeId::random();
 
         let enr_fork_id = self.enr_fork_id();
         // predicate for finding nodes with a matching fork
-        let eth2_fork_predicate = move |enr: &Enr| enr.get(ETH2_ENR_KEY) == Some(&enr_fork_id);
-        let predicate = move |enr: &Enr| eth2_fork_predicate(enr) && enr_predicate(enr);
+        let eth2_fork_predicate = move |enr: &Enr<CombinedKey>| enr.get(ETH2_ENR_KEY) == Some(&enr_fork_id);
+        let predicate = move |enr: &Enr<CombinedKey>| eth2_fork_predicate(enr) && enr_predicate(enr);
 
         // general predicate
         self.discovery

@@ -1,5 +1,5 @@
 extern crate target_info;
-use crate::{error, Enr, DEFAULT_CLIENT_NAME};
+use crate::{error, Enr, CombinedKey, DEFAULT_CLIENT_NAME};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
@@ -61,7 +61,7 @@ pub struct Config {
     pub discv5_config: Discv5Config,
 
     /// List of nodes to initially connect to.
-    pub boot_nodes: Vec<Enr>,
+    pub boot_nodes: Vec<Enr<CombinedKey>>,
 
     /// List of libp2p nodes to initially connect to.
     pub libp2p_nodes: Vec<Multiaddr>,

@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use network::{unused_port, Enr, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
+use network::{unused_port, Enr, CombinedKey, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
 use std::path::PathBuf;
 
 pub const DEFAULT_DEBUG_LEVEL: &str = "info";
@@ -94,7 +94,7 @@ impl Config {
             self.network_config.boot_nodes = boot_enr_str
                 .split(',')
                 .map(|enr| enr.parse().map_err(|_| format!("Invalid ENR: {}", enr)))
-                .collect::<Result<Vec<Enr>, _>>()?;
+                .collect::<Result<Vec<Enr<CombinedKey>>, _>>()?;
         }
 
         if let Some(libp2p_addresses_str) = args.value_of("libp2p-addresses") {

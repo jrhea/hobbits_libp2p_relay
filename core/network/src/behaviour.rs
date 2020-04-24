@@ -1,7 +1,7 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
 use crate::{
-    error, Enr, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, SubnetId, TopicHash,
+    error, Enr, CombinedKey, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash,
 };
 use futures::prelude::*;
 use libp2p::{
@@ -159,12 +159,12 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
     }
 
     /// Returns an iterator over all enr entries in the DHT.
-    pub fn enr_entries(&mut self) -> impl Iterator<Item = &Enr> {
+    pub fn enr_entries(&mut self) -> impl Iterator<Item = &Enr<CombinedKey>> {
         self.discovery.enr_entries()
     }
 
     // /// Add an ENR to the routing table of the discovery mechanism.
-    pub fn add_enr(&mut self, enr: Enr) {
+    pub fn add_enr(&mut self, enr: Enr<CombinedKey>) {
         self.discovery.add_enr(enr);
     }
 

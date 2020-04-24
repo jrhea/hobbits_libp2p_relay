@@ -1,12 +1,12 @@
 //! A collection of variables that are accessible outside of the network thread itself.
-use crate::{Enr, GossipTopic, Multiaddr, PeerId, PeerInfo};
+use crate::{Enr, CombinedKey, GossipTopic, Multiaddr, PeerId, PeerInfo};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU16, Ordering};
 
 pub struct NetworkGlobals {
     /// The current local ENR.
-    pub local_enr: RwLock<Option<Enr>>,
+    pub local_enr: RwLock<Option<Enr<CombinedKey>>>,
     /// The local peer_id.
     pub peer_id: RwLock<PeerId>,
     /// Listening multiaddrs.
@@ -36,7 +36,7 @@ impl NetworkGlobals {
 
     /// Returns the local ENR from the underlying Discv5 behaviour that external peers may connect
     /// to.
-    pub fn local_enr(&self) -> Option<Enr> {
+    pub fn local_enr(&self) -> Option<Enr<CombinedKey>> {
         self.local_enr.read().clone()
     }
 

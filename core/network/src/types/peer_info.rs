@@ -1,5 +1,5 @@
 //NOTE: This should be removed in favour of the PeerManager PeerInfo, once built.
-use crate::{EnrBitfield, SubnetId};
+use crate::{EnrBitfield};
 
 /// Information about a given connected peer.
 #[derive(Default, Debug, Clone)]

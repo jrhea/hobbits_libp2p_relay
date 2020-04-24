@@ -1,5 +1,5 @@
 //! A collection of variables that are accessible outside of the network thread itself.
-use crate::{Enr, CombinedKey, GossipTopic, Multiaddr, PeerId, PeerInfo};
+use crate::{CombinedKey, Enr, GossipTopic, Multiaddr, PeerId, PeerInfo};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU16, Ordering};

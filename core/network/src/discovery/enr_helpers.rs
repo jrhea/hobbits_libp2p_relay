@@ -1,5 +1,5 @@
 use super::ENR_FILENAME;
-use crate::{Enr, CombinedKey, EnrForkId, NetworkConfig};
+use crate::{CombinedKey, Enr, EnrForkId, NetworkConfig};
 use libp2p::core::identity::Keypair;
 use libp2p::discv5::enr::EnrBuilder;
 use slog::{debug, warn};

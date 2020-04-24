@@ -6,3 +6,6 @@ members = [
     "examples/rust"
 ]
 
+[patch.crates-io]
+libp2p = { git = "https://github.com/sigp/rust-libp2p", rev= "71cf486b4d992862f5a05f9f4ef5e5c1631f4add", package = "libp2p" }
+

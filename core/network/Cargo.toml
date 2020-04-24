@@ -7,7 +7,7 @@ description = "Mothra p2p network layer."
 license = "Apache-2.0"
 
 [dependencies]
-libp2p =  { git = "https://github.com/sigp/rust-libp2p", rev = "71cf486b4d992862f5a05f9f4ef5e5c1631f4add", package = "libp2p"}
+libp2p = "0.13.2"
 hex = "0.3"
 serde = "1.0.102"
 serde_derive = "1.0.102"

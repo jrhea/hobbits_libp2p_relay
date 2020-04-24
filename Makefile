@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 include config.mk
 
-.PHONY: all mash core c dotnet java dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples touch lint clean
+.PHONY: all mash core c dotnet java dotnet-bindings java-bindings rust-examples c-examples dotnet-examples java-examples lint clean
 
 .DEFAULT: all
 
@@ -52,15 +52,6 @@ java-examples: java-bindings
 	@echo ""
 	@echo Building Java examples
 	cd $(JEXAMPLES_DIR) && make $@
-
-touch: 
-	cargo update -p tree_hash
-	cargo update -p tree_hash_derive
-	cargo update -p eth2_ssz
-	cargo update -p eth2_ssz_derive
-	cargo update -p eth2_ssz_types
-	cargo update -p types
-	cargo update -p eth2_hashing
 
 lint: 
 	cargo fmt

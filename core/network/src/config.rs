@@ -1,5 +1,5 @@
 extern crate target_info;
-use crate::{error, Enr, CombinedKey, DEFAULT_CLIENT_NAME};
+use crate::{error, CombinedKey, Enr, DEFAULT_CLIENT_NAME};
 use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;

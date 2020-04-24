@@ -1,7 +1,7 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
 use crate::{
-    error, Enr, CombinedKey, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash,
+    error, CombinedKey, Enr, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash,
 };
 use futures::prelude::*;
 use libp2p::{

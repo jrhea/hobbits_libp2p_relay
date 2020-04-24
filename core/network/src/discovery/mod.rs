@@ -1,13 +1,11 @@
 ///! This manages the discovery and management of peers.
 mod enr_helpers;
 
-use crate::{
-    error, Enr, CombinedKey, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo
-};
+use crate::{error, CombinedKey, Enr, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo};
 use enr_helpers::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
 use futures::prelude::*;
 use libp2p::core::{identity::Keypair, ConnectedPoint, Multiaddr, PeerId};
-use libp2p::discv5::enr::{NodeId};
+use libp2p::discv5::enr::NodeId;
 use libp2p::discv5::{Discv5, Discv5Event};
 use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
@@ -163,7 +161,6 @@ impl<TSubstream> Discovery<TSubstream> {
         self.discovery.enr_entries()
     }
 
-
     /// Updates the `eth2` field of our local ENR.
     pub fn update_eth2_enr(&mut self, enr_fork_id: EnrForkId) {
         info!(self.log, "Updating the ENR fork version");
@@ -204,8 +201,10 @@ impl<TSubstream> Discovery<TSubstream> {
 
         let enr_fork_id = self.enr_fork_id();
         // predicate for finding nodes with a matching fork
-        let eth2_fork_predicate = move |enr: &Enr<CombinedKey>| enr.get(ETH2_ENR_KEY) == Some(&enr_fork_id);
-        let predicate = move |enr: &Enr<CombinedKey>| eth2_fork_predicate(enr) && enr_predicate(enr);
+        let eth2_fork_predicate =
+            move |enr: &Enr<CombinedKey>| enr.get(ETH2_ENR_KEY) == Some(&enr_fork_id);
+        let predicate =
+            move |enr: &Enr<CombinedKey>| eth2_fork_predicate(enr) && enr_predicate(enr);
 
         // general predicate
         self.discovery

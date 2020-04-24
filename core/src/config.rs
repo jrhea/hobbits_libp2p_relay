@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use network::{unused_port, Enr, CombinedKey, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
+use network::{unused_port, CombinedKey, Enr, Multiaddr, NetworkConfig, DEFAULT_CLIENT_NAME};
 use std::path::PathBuf;
 
 pub const DEFAULT_DEBUG_LEVEL: &str = "info";

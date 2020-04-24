@@ -7,7 +7,7 @@ pub use globals::NetworkGlobals;
 pub use peer_info::PeerInfo;
 pub use topics::GossipTopic;
 
-use types::{BitVector, EthSpec, MainnetEthSpec};
+use eth2_types::{BitVector, EthSpec, MainnetEthSpec};
 
 #[allow(type_alias_bounds)]
 pub type EnrBitfield = BitVector<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>;

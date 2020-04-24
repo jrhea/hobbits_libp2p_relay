@@ -3,7 +3,7 @@ use crate::{Enr, EnrBitfield, EnrForkId, NetworkConfig};
 use libp2p::core::identity::Keypair;
 use libp2p::discv5::enr::{CombinedKey, EnrBuilder};
 use slog::{debug, warn};
-use ssz::Encode;
+use eth2_ssz::Encode;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;

@@ -12,7 +12,7 @@ use libp2p::discv5::{Discv5, Discv5Event};
 use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
 use slog::{crit, debug, info, trace, warn};
-use ssz::{Decode, Encode};
+use eth2_ssz::{Decode, Encode};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::Path;

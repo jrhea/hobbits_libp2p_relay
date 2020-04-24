@@ -6,12 +6,3 @@ members = [
     "examples/rust"
 ]
 
-[patch.crates-io]
-tree_hash = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "tree_hash" }
-tree_hash_derive = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "tree_hash_derive" }
-eth2_ssz = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "eth2_ssz" }
-eth2_ssz_derive = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "eth2_ssz_derive" }
-eth2_ssz_types = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "eth2_ssz_types" }
-types = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "types" }
-eth2_hashing = { git = "https://github.com/jrhea/lighthouse", branch = "prkl", package = "eth2_hashing" }
-

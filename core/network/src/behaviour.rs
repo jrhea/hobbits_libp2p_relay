@@ -168,21 +168,6 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
         self.discovery.add_enr(enr);
     }
 
-    /// Updates a subnet value to the ENR bitfield.
-    ///
-    /// The `value` is `true` if a subnet is being added and false otherwise.
-    //TODO: revisit bc update_enr_bitfield requires ssz
-    pub fn update_enr_subnet(&mut self, subnet_id: SubnetId, value: bool) {
-        if let Err(e) = self.discovery.update_enr_bitfield(subnet_id, value) {
-            crit!(self.log, "Could not update ENR bitfield"; "error" => e);
-        }
-    }
-
-    /// A request to search for peers connected to a long-lived subnet.
-    pub fn peers_request(&mut self, subnet_id: SubnetId) {
-        self.discovery.peers_request(subnet_id);
-    }
-
     /// Updates the local ENR's "eth2" field with the latest EnrForkId.
     //TODO: fix the fact that the fork digest isnt updated
     pub fn update_fork_version(&mut self, enr_fork_id: EnrForkId) {

@@ -30,12 +30,4 @@ impl PeerInfo {
             enr_bitfield: None,
         }
     }
-
-    /// Returns if the peer is subscribed to a given `SubnetId`
-    pub fn on_subnet(&self, subnet_id: SubnetId) -> bool {
-        if let Some(bitfield) = &self.enr_bitfield {
-            return bitfield.get(subnet_id as usize).unwrap_or_else(|_| false);
-        }
-        false
-    }
 }

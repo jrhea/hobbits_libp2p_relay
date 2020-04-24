@@ -7,10 +7,8 @@ pub use globals::NetworkGlobals;
 pub use peer_info::PeerInfo;
 pub use topics::GossipTopic;
 
-use eth2_types::{BitVector, EthSpec, MainnetEthSpec};
-
 #[allow(type_alias_bounds)]
-pub type EnrBitfield = BitVector<<MainnetEthSpec as EthSpec>::SubnetBitfieldLength>;
+pub type EnrBitfield = Vec<u8>;
 pub type SubnetId = u64;
 pub type EnrForkId = Vec<u8>;
 // shift this type into discv5

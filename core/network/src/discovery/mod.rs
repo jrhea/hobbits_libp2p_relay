@@ -12,7 +12,6 @@ use libp2p::discv5::{Discv5, Discv5Event};
 use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
 use slog::{crit, debug, info, trace, warn};
-use eth2_ssz::{Decode, Encode};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -166,50 +165,6 @@ impl<TSubstream> Discovery<TSubstream> {
         self.discovery.enr_entries()
     }
 
-    /// Adds/Removes a subnet from the ENR Bitfield
-    //  TODO: revisit bc it uses ssz
-    pub fn update_enr_bitfield(&mut self, subnet_id: SubnetId, value: bool) -> Result<(), String> {
-        let id = subnet_id as usize;
-
-        let local_enr = self.discovery.local_enr();
-        let bitfield_bytes = local_enr
-            .get(BITFIELD_ENR_KEY)
-            .ok_or_else(|| "ENR bitfield non-existent")?;
-
-        let mut current_bitfield = EnrBitfield::from_ssz_bytes(bitfield_bytes)
-            .map_err(|_| "Could not decode local ENR SSZ bitfield")?;
-
-        if id >= current_bitfield.len() {
-            return Err(format!(
-                "Subnet id: {} is outside the ENR bitfield length: {}",
-                id,
-                current_bitfield.len()
-            ));
-        }
-
-        if current_bitfield
-            .get(id)
-            .map_err(|_| String::from("Subnet ID out of bounds"))?
-            == value
-        {
-            return Err(format!(
-                "Subnet id: {} already in the local ENR already has value: {}",
-                id, value
-            ));
-        }
-
-        // set the subnet bitfield in the ENR
-        current_bitfield
-            .set(id, value)
-            .map_err(|_| String::from("Subnet ID out of bounds, could not set subnet ID"))?;
-
-        // insert the bitfield into the ENR record
-        let _ = self
-            .discovery
-            .enr_insert(BITFIELD_ENR_KEY, current_bitfield.as_ssz_bytes());
-
-        Ok(())
-    }
 
     /// Updates the `eth2` field of our local ENR.
     pub fn update_eth2_enr(&mut self, enr_fork_id: EnrForkId) {
@@ -225,65 +180,6 @@ impl<TSubstream> Discovery<TSubstream> {
                     "error" => format!("{:?}", e)
                 )
             });
-    }
-
-    /// A request to find peers on a given subnet.
-    // TODO: This logic should be improved with added sophistication in peer management
-    // This currently checks for currently connected peers and if we don't have
-    // PEERS_WANTED_BEFORE_DISCOVERY connected to a given subnet we search for more.
-    pub fn peers_request(&mut self, subnet_id: SubnetId) {
-        // TODO: Add PeerManager struct to do this loop for us
-
-        let peers_on_subnet = self
-            .network_globals
-            .connected_peer_set
-            .read()
-            .values()
-            .fold(0, |found_peers, peer_info| {
-                if peer_info.on_subnet(subnet_id) {
-                    found_peers + 1
-                } else {
-                    found_peers
-                }
-            });
-
-        if peers_on_subnet < TARGET_SUBNET_PEERS {
-            let target_peers = TARGET_SUBNET_PEERS - peers_on_subnet;
-            debug!(self.log, "Searching for peers for subnet";
-                "subnet_id" => subnet_id,
-                "connected_peers_on_subnet" => peers_on_subnet,
-                "target_subnet_peers" => TARGET_SUBNET_PEERS,
-                "target_peers" => target_peers
-            );
-
-            let log_clone = self.log.clone();
-
-            let subnet_predicate = move |enr: &Enr| {
-                if let Some(bitfield_bytes) = enr.get(BITFIELD_ENR_KEY) {
-                    let bitfield = match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            warn!(log_clone, "Could not decode ENR bitfield for peer"; "peer_id" => format!("{}", enr.peer_id()), "error" => format!("{:?}", e));
-                            return false;
-                        }
-                    };
-
-                    return bitfield.get(subnet_id as usize).unwrap_or_else(|_| {
-                        debug!(log_clone, "Peer found but not on desired subnet"; "peer_id" => format!("{}", enr.peer_id()));
-                        false
-                    });
-                }
-                false
-            };
-
-            // start the query
-            self.start_query(subnet_predicate, target_peers as usize);
-        }
-        debug!(self.log, "Discovery ignored";
-            "reason" => "Already connected to desired peers",
-            "connected_peers_on_subnet" => peers_on_subnet,
-            "target_subnet_peers" => TARGET_SUBNET_PEERS,
-        );
     }
 
     /* Internal Functions */
@@ -353,15 +249,7 @@ where
         let mut peer_info = PeerInfo::new();
         if let Some(enr) = self.discovery.enr_of_peer(&peer_id) {
             let bitfield = match enr.get(BITFIELD_ENR_KEY) {
-                Some(bitfield_bytes) => match EnrBitfield::from_ssz_bytes(bitfield_bytes) {
-                    Ok(bitfield) => bitfield,
-                    Err(e) => {
-                        warn!(self.log, "Peer had invalid ENR bitfield"; 
-                            "peer_id" => format!("{}", peer_id),
-                            "error" => format!("{:?}", e));
-                        return;
-                    }
-                },
+                Some(bitfield_bytes) => bitfield_bytes,
                 None => {
                     warn!(self.log, "Peer has no ENR bitfield"; 
                     "peer_id" => format!("{}", peer_id));
@@ -369,7 +257,7 @@ where
                 }
             };
 
-            peer_info.enr_bitfield = Some(bitfield);
+            peer_info.enr_bitfield = Some(bitfield.to_vec());
         }
 
         self.network_globals

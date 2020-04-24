@@ -3,7 +3,7 @@ use crate::{Enr, EnrBitfield, EnrForkId, NetworkConfig};
 use libp2p::core::identity::Keypair;
 use libp2p::discv5::enr::{CombinedKey, EnrBuilder};
 use slog::{debug, warn};
-use eth2_ssz::Encode;
+//use eth2_ssz::Encode;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;
@@ -92,14 +92,13 @@ fn build_enr(
 
     // set the `eth2` field on our ENR
 
-    // builder.add_value(ETH2_ENR_KEY.into(), enr_fork_id.as_ssz_bytes());
     // TODO: fix this
     builder.add_value(ETH2_ENR_KEY.into(), enr_fork_id);
 
     // set the "attnets" field on our ENR
     // TODO: fix this
-    let bitfield = EnrBitfield::new();
-    builder.add_value(BITFIELD_ENR_KEY.into(), bitfield.as_ssz_bytes());
+    let bitfield = [0u8; 8].to_vec();
+    builder.add_value(BITFIELD_ENR_KEY.into(), bitfield);
 
     builder
         .tcp(config.libp2p_port)

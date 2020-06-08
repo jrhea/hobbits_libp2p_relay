@@ -1,6 +1,6 @@
 use cast::i16;
 use env_logger::Env;
-use mothra::{cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage};
+use mothra::{cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage, Subscriber};
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
@@ -43,36 +43,46 @@ static mut DISCOVERED_PEER_PTR: Option<DiscoveredPeerType> = None;
 static mut RECEIVE_GOSSIP_PTR: Option<ReceiveGossipType> = None;
 static mut RECEIVE_RPC_PTR: Option<ReceiveRpcType> = None;
 
-fn discovered_peer(peer: String) {
-    let peer_length = i16(peer.len()).unwrap();
-    unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
+struct Client;
+
+impl Client {
+    pub fn new() -> Self {
+        Client{}
+    }
 }
 
-fn receive_gossip(message_id: String, peer_id: String, topic: String, mut data: Vec<u8>) {
-    let message_id_length = i16(topic.len()).unwrap();
-    let peer_id_length = i16(topic.len()).unwrap();
-    let topic_length = i16(topic.len()).unwrap();
-    let data_length = i16(data.len()).unwrap();
-    unsafe {
-        RECEIVE_GOSSIP_PTR.unwrap()(message_id.as_ptr(), message_id_length, peer_id.as_ptr(), peer_id_length, topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
-    };
-}
+impl Subscriber for Client {
+    fn discovered_peer(&self, peer: String) {
+        let peer_length = i16(peer.len()).unwrap();
+        unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
+    }
 
-fn receive_rpc(method: String, req_resp: u8, peer: String, mut data: Vec<u8>) {
-    let method_length = i16(method.len()).unwrap();
-    let peer_length = i16(peer.len()).unwrap();
-    let data_length = i16(data.len()).unwrap();
-    unsafe {
-        RECEIVE_RPC_PTR.unwrap()(
-            method.as_ptr(),
-            method_length,
-            i16(req_resp),
-            peer.as_ptr(),
-            peer_length,
-            data.as_mut_ptr(),
-            data_length,
-        )
-    };
+    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, mut data: Vec<u8>) {
+        let message_id_length = i16(topic.len()).unwrap();
+        let peer_id_length = i16(topic.len()).unwrap();
+        let topic_length = i16(topic.len()).unwrap();
+        let data_length = i16(data.len()).unwrap();
+        unsafe {
+            RECEIVE_GOSSIP_PTR.unwrap()(message_id.as_ptr(), message_id_length, peer_id.as_ptr(), peer_id_length, topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
+        };
+    }
+
+    fn receive_rpc(&self, method: String, req_resp: u8, peer: String, mut data: Vec<u8>) {
+        let method_length = i16(method.len()).unwrap();
+        let peer_length = i16(peer.len()).unwrap();
+        let data_length = i16(data.len()).unwrap();
+        unsafe {
+            RECEIVE_RPC_PTR.unwrap()(
+                method.as_ptr(),
+                method_length,
+                i16(req_resp),
+                peer.as_ptr(),
+                peer_length,
+                data.as_mut_ptr(),
+                data_length,
+            )
+        };
+    }
 }
 
 #[no_mangle]
@@ -167,13 +177,12 @@ pub unsafe extern "C" fn network_start(
     // build the current enr_fork_id for adding to our local ENR
     //TODO
     let enr_fork_id = [0u8; 32].to_vec();
+    let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
     let (network_globals, network_send, network_exit) = Mothra::new(
         config,
         enr_fork_id,
         &runtime.executor(),
-        discovered_peer,
-        receive_gossip,
-        receive_rpc,
+        client,
         log.clone(),
     )
     .unwrap();

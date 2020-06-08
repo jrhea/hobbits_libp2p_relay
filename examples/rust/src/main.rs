@@ -1,10 +1,41 @@
 extern crate target_info;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use env_logger::Env;
-use mothra::{cli_app, gossip, Mothra};
+use mothra::{cli_app, gossip, Mothra, Subscriber};
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::{thread, time};
 use tokio_compat::runtime::Runtime;
+
+struct Client;
+
+impl Client {
+    pub fn new() -> Self {
+        Client{}
+    }
+}
+
+impl Subscriber for Client {
+    fn discovered_peer(&self, peer: String) {
+        println!("Rust: discovered peer");
+        println!("peer={:?}", peer);
+    }
+    
+    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>) {
+        println!("Rust: received gossip");
+        println!("message id={:?}", message_id);
+        println!("peer id={:?}", peer_id);
+        println!("topic={:?}", topic);
+        println!("data={:?}", String::from_utf8_lossy(&data));
+    }
+    
+    fn receive_rpc(&self, method: String, req_resp: u8, peer: String, data: Vec<u8>) {
+        println!("Rust: received rpc");
+        println!("method={:?}", method);
+        println!("req_resp={:?}", req_resp);
+        println!("peer={:?}", peer);
+        println!("data={:?}", String::from_utf8_lossy(&data));
+    }
+}
 
 fn main() {
     let start = time::Instant::now();
@@ -55,13 +86,12 @@ fn main() {
     let slog = Logger::root(drain.fuse(), o!());
     let log = slog.new(o!("Rust-Example" => "Mothra"));
     let enr_fork_id = [0u8; 32].to_vec();
+    let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
     let (network_globals, network_send, network_exit) = Mothra::new(
         config,
         enr_fork_id,
         &executor,
-        on_discovered_peer,
-        on_receive_gossip,
-        on_receive_rpc,
+        client,
         log.clone(),
     )
     .unwrap();
@@ -75,25 +105,4 @@ fn main() {
             .to_vec();
         gossip(network_send.clone(), topic, data, log.clone());
     }
-}
-
-fn on_discovered_peer(peer: String) {
-    println!("Rust: discovered peer");
-    println!("peer={:?}", peer);
-}
-
-fn on_receive_gossip(message_id: String, peer_id: String, topic: String, data: Vec<u8>) {
-    println!("Rust: received gossip");
-    println!("message id={:?}", message_id);
-    println!("peer id={:?}", peer_id);
-    println!("topic={:?}", topic);
-    println!("data={:?}", String::from_utf8_lossy(&data));
-}
-
-fn on_receive_rpc(method: String, req_resp: u8, peer: String, data: Vec<u8>) {
-    println!("Rust: received rpc");
-    println!("method={:?}", method);
-    println!("req_resp={:?}", req_resp);
-    println!("peer={:?}", peer);
-    println!("data={:?}", String::from_utf8_lossy(&data));
 }

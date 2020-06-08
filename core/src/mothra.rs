@@ -22,6 +22,12 @@ pub type DiscoveredPeerType = fn(peer: String);
 pub type ReceiveGossipType = fn(message_id: String, peer_id: String, topic: String, data: Vec<u8>);
 pub type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
+pub trait Subscriber {
+    fn discovered_peer(&self, peer: String);
+    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>);
+    fn receive_rpc(&self, method: String, req_resp: u8, peer: String, data: Vec<u8>);
+}
+
 /// Handles communication between calling code and the `libp2p_p2p` service.
 pub struct Mothra {
     /// The underlying libp2p service that drives all the network interactions.
@@ -36,9 +42,7 @@ pub struct Mothra {
     initial_delay: Delay,
     /// Probability of message propagation.
     propagation_percentage: Option<u8>,
-    discovered_peer: DiscoveredPeerType,
-    receive_gossip: ReceiveGossipType,
-    receive_rpc: ReceiveRpcType,
+    client: Box<dyn Subscriber + Send>,
     /// The logger for the network service.
     log: slog::Logger,
 }
@@ -48,9 +52,7 @@ impl Mothra {
         mut config: Config,
         enr_fork_id: Vec<u8>,
         executor: &TaskExecutor,
-        discovered_peer: DiscoveredPeerType,
-        receive_gossip: ReceiveGossipType,
-        receive_rpc: ReceiveRpcType,
+        client: Box<dyn Subscriber + Send>,
         log: slog::Logger,
     ) -> error::Result<(
         Arc<NetworkGlobals>,
@@ -81,9 +83,7 @@ impl Mothra {
             network_globals: network_globals.clone(),
             initial_delay,
             propagation_percentage: config.network_config.propagation_percentage,
-            discovered_peer,
-            receive_gossip,
-            receive_rpc,
+            client,
             log: log.clone(),
         };
 
@@ -235,7 +235,7 @@ fn spawn_mothra(
                             RPCEvent::Request(_, request) => match request {
                                 RPCRequest::Message(data) => {
                                     debug!(log, "RPCRequest message received: {:?}", data);
-                                    (mothra.receive_rpc)(
+                                    mothra.client.receive_rpc(
                                         "".to_string(),
                                         0,
                                         peer_id.to_string(),
@@ -256,7 +256,7 @@ fn spawn_mothra(
                                 RPCErrorResponse::Success(response) => match response {
                                     RPCResponse::Message(data) => {
                                         debug!(log, "RPCResponse message received: {:?}", data);
-                                        (mothra.receive_rpc)(
+                                        mothra.client.receive_rpc(
                                             "".to_string(),
                                             1,
                                             peer_id.to_string(),
@@ -272,7 +272,7 @@ fn spawn_mothra(
                     }
                     Libp2pEvent::PeerDialed(peer_id) => {
                         debug!(log, "Peer Dialed: {:?}", peer_id);
-                        (mothra.discovered_peer)(peer_id.to_string());
+                        mothra.client.discovered_peer(peer_id.to_string());
                     }
                     Libp2pEvent::PeerDisconnected(peer_id) => {
                         debug!(log, "Peer Disconnected: {:?}", peer_id);
@@ -284,7 +284,7 @@ fn spawn_mothra(
                         message,
                     } => {
                         debug!(log, "Gossip message received from: {:?}", source);
-                        (mothra.receive_gossip)(id.to_string(), source.to_string(), topics[0].to_string(), message.clone());
+                        mothra.client.receive_gossip(id.to_string(), source.to_string(), topics[0].to_string(), message.clone());
                     }
                     Libp2pEvent::PeerSubscribed(peer_id, topic) => {
                         debug!(log, "Peer {:?} subscribed to topic: {:?}", peer_id, topic);

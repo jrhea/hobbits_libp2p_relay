@@ -326,10 +326,7 @@ where
                             // log these to see if we are unnecessarily dropping discovered peers
                             if enr.get(ETH2_ENR_KEY) == Some(&self.enr_fork_id()) {
                                 trace!(self.log, "Peer found in process of query"; "peer_id" => format!("{}", enr.peer_id()), "tcp_socket" => enr.tcp_socket());
-                            } else {
-                                // this is temporary warning for debugging the DHT
-                                warn!(self.log, "Found peer during discovery not on correct fork"; "peer_id" => format!("{}", enr.peer_id()), "tcp_socket" => enr.tcp_socket());
-                            }
+                            } 
                         }
                         Discv5Event::SocketUpdated(socket) => {
                             info!(self.log, "Address updated"; "ip" => format!("{}",socket.ip()), "udp_port" => format!("{}", socket.port()));

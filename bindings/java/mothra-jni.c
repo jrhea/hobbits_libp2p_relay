@@ -112,7 +112,7 @@ void discovered_peer_callback(const unsigned char* peer, int peer_length) {
     }
 }
 
-void receive_gossip_callback(const unsigned char* topic, int topic_length, unsigned char* data, int data_length) {
+void receive_gossip_callback(const unsigned char* message_id, int message_id_length, const unsigned char* peer_id, int peer_id_length, const unsigned char* topic, int topic_length, unsigned char* data, int data_length) {
     JNIEnv *jenv;
     jint rs = (*jvm)->AttachCurrentThread(jvm, (void**)&jenv, NULL);
     assert (rs == JNI_OK);

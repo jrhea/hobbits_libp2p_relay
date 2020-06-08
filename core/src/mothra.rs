@@ -19,7 +19,7 @@ use tokio_compat::runtime::TaskExecutor;
 const BAN_PEER_TIMEOUT: u64 = 30;
 
 pub type DiscoveredPeerType = fn(peer: String);
-pub type ReceiveGossipType = fn(topic: String, data: Vec<u8>);
+pub type ReceiveGossipType = fn(message_id: String, peer_id: String, topic: String, data: Vec<u8>);
 pub type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 /// Handles communication between calling code and the `libp2p_p2p` service.
@@ -284,7 +284,7 @@ fn spawn_mothra(
                         message,
                     } => {
                         debug!(log, "Gossip message received from: {:?}", source);
-                        (mothra.receive_gossip)(topics[0].to_string(), message.clone());
+                        (mothra.receive_gossip)(id.to_string(), source.to_string(), topics[0].to_string(), message.clone());
                     }
                     Libp2pEvent::PeerSubscribed(peer_id, topic) => {
                         debug!(log, "Peer {:?} subscribed to topic: {:?}", peer_id, topic);

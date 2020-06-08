@@ -20,8 +20,11 @@ void on_discovered_peer(const unsigned char* peer_utf8, int peer_length) {
     printf(",peer=%.*s\n", peer_length, peer_utf8);
 }
 
-void on_receive_gossip(const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length) {
+void on_receive_gossip(const unsigned char* message_id_utf8, int message_id_length, const unsigned char* peer_id_utf8, int peer_id_length, const unsigned char* topic_utf8, int topic_length, unsigned char* data, int data_length) {
     printf("C: received gossip");
+    printf(",message_id=%.*s", message_id_length, message_id_utf8);
+    printf(",peer_id=%.*s", peer_id_length, peer_id_utf8);
+    printf(",topic=%.*s", topic_length, topic_utf8);
     printf(",topic=%.*s", topic_length, topic_utf8);
     printf(",data=%.*s\n", data_length, data);
 }

@@ -41,7 +41,7 @@ namespace Bindings
         public unsafe delegate void DiscoveredPeer(byte* peerUtf8, int peerLength);
         
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public unsafe delegate void ReceiveGossip(byte* topicUtf8, int topicLength, byte* data, int dataLength);
+        public unsafe delegate void ReceiveGossip(byte* messageIdUtf8, int messageIdLength, byte* peerIdUtf8, int peerIdLength, byte* topicUtf8, int topicLength, byte* data, int dataLength);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public unsafe delegate void ReceiveRpc(byte* methodUtf8, int methodLength, int requestResponseFlag, byte* peerUtf8, int peerLength, byte* data, int dataLength);

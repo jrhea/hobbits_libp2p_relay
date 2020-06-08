@@ -20,13 +20,13 @@ EXPORT void send_rpc_response(unsigned char*, int, unsigned char*, int, unsigned
 
 EXPORT void register_handlers(
    void (*discovered_peer_ptr)(const unsigned char*, int), 
-   void (*receive_gossip_ptr)(const unsigned char*, int, unsigned char*, int), 
+   void (*receive_gossip_ptr)(const unsigned char*, int, const unsigned char*, int, const unsigned char*, int, unsigned char*, int), 
    void (*receive_rpc_ptr)(const unsigned char*, int, int, const unsigned char*, int, unsigned char*, int)
 );
        
 // Events functions called by Core
 EXPORT void discovered_peer(const unsigned char*, int);
-EXPORT void receive_gossip(const unsigned char*, int, unsigned char*, int);
+EXPORT void receive_gossip(const unsigned char*, int, const unsigned char*, int, const unsigned char*, int, unsigned char*, int);
 EXPORT void receive_rpc(const unsigned char*, int, int, const unsigned char*, int, unsigned char*, int);
 
 #ifdef __cplusplus

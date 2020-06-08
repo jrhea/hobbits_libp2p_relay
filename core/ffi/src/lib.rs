@@ -21,6 +21,10 @@ static mut CONTEXT: Vec<Context> = Vec::new();
 
 type DiscoveredPeerType = unsafe extern "C" fn(peer: *const c_uchar, peer_length: i16);
 type ReceiveGossipType = unsafe extern "C" fn(
+    message_id: *const c_uchar,
+    message_id_length: i16,
+    peer_id: *const c_uchar,
+    peer_id_length: i16,
     topic: *const c_uchar,
     topic_length: i16,
     data: *mut c_uchar,
@@ -44,11 +48,13 @@ fn discovered_peer(peer: String) {
     unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
 }
 
-fn receive_gossip(topic: String, mut data: Vec<u8>) {
+fn receive_gossip(message_id: String, peer_id: String, topic: String, mut data: Vec<u8>) {
+    let message_id_length = i16(topic.len()).unwrap();
+    let peer_id_length = i16(topic.len()).unwrap();
     let topic_length = i16(topic.len()).unwrap();
     let data_length = i16(data.len()).unwrap();
     unsafe {
-        RECEIVE_GOSSIP_PTR.unwrap()(topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
+        RECEIVE_GOSSIP_PTR.unwrap()(message_id.as_ptr(), message_id_length, peer_id.as_ptr(), peer_id_length, topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
     };
 }
 

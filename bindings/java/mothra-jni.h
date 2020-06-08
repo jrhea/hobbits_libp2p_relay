@@ -11,7 +11,7 @@ JNIEXPORT void JNICALL Java_p2p_mothra_Mothra_SendGossip(JNIEnv*, jclass, jbyteA
 JNIEXPORT void JNICALL Java_p2p_mothra_Mothra_SendRPC (JNIEnv*, jclass, jbyteArray, jint, jbyteArray, jbyteArray);
 
 void discovered_peer_callback(const unsigned char*, int);
-void receive_gossip_callback(const unsigned char*, int, unsigned char*, int);
+void receive_gossip_callback(const unsigned char*, int, const unsigned char*, int, const unsigned char*, int, unsigned char*, int);
 void receive_rpc_callback(const unsigned char*, int, int, const unsigned char*, int, unsigned char*, int);
 
 static char** copy_array(JNIEnv*, jobjectArray, int);

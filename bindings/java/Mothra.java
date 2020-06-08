@@ -16,7 +16,7 @@ public class Mothra {
     public static void DiscoveredPeer(byte[] peer) {
         DiscoveryMessage.apply(new String(peer));
     }
-    public static void ReceiveGossip(byte[] topic, byte[] message) {
+    public static void ReceiveGossip(byte[] message_id, byte[] peer_id, byte[] topic, byte[] message) {
         ReceivedGossipMessage.apply(new String(topic), message);
     }
     public static void ReceiveRPC(byte[] method, int req_resp, byte[] peer, byte[] message) {

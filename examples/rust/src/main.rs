@@ -82,8 +82,10 @@ fn on_discovered_peer(peer: String) {
     println!("peer={:?}", peer);
 }
 
-fn on_receive_gossip(topic: String, data: Vec<u8>) {
+fn on_receive_gossip(message_id: String, peer_id: String, topic: String, data: Vec<u8>) {
     println!("Rust: received gossip");
+    println!("message id={:?}", message_id);
+    println!("peer id={:?}", peer_id);
     println!("topic={:?}", topic);
     println!("data={:?}", String::from_utf8_lossy(&data));
 }

@@ -164,12 +164,14 @@ namespace Example
             Console.WriteLine($" discovered {peer}");
         }
 
-        public unsafe void OnReceiveGossip(byte* topicUtf8, int topicLength, byte* data, int dataLength)
+        public unsafe void OnReceiveGossip(byte* messageIdUtf8, int messageIdLength, byte* peerIdUtf8, int peerIdLength, byte* topicUtf8, int topicLength, byte* data, int dataLength)
         {
             Console.Write("dotnet: receive");
+            string messageId = new String((sbyte*)messageIdUtf8, 0, messageIdLength, Encoding.UTF8);
+            string peerId = new String((sbyte*)peerIdUtf8, 0, peerIdLength, Encoding.UTF8);
             string topic = new String((sbyte*)topicUtf8, 0, topicLength, Encoding.UTF8);
             string dataString = new String((sbyte*)data, 0, dataLength, Encoding.UTF8);
-            Console.WriteLine($" gossip={topic},data={dataString}");
+            Console.WriteLine($"messageId={messageId},peerId={peerId},gossip={topic},data={dataString}");
         }
 
         public unsafe void OnReceiveRpc(byte* methodUtf8, int methodLength, int requestResponseFlag, byte* peerUtf8,

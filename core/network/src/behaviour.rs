@@ -208,16 +208,13 @@ impl<TSubstream: AsyncRead + AsyncWrite> NetworkBehaviourEventProcess<GossipsubE
             GossipsubEvent::Message(propagation_source, id, gs_msg) => {
                 // Note: We are keeping track here of the peer that sent us the message, not the
                 // peer that originally published the message.
-                if self.seen_gossip_messages.put(id.clone(), ()).is_none() {
-                    self.events.push(BehaviourEvent::GossipMessage {
-                        id,
-                        source: propagation_source,
-                        topics: gs_msg.topics,
-                        message: gs_msg.data,
-                    });
-                } else {
-                    warn!(self.log, "A duplicate gossipsub message was received"; "message" => format!("{:?}", gs_msg));
-                }
+                self.events.push(BehaviourEvent::GossipMessage {
+                    id,
+                    source: propagation_source,
+                    topics: gs_msg.topics,
+                    message: gs_msg.data,
+                });
+
             }
             GossipsubEvent::Subscribed { peer_id, topic } => {
                 self.events

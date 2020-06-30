@@ -8,24 +8,43 @@ license = "Apache-2.0"
 
 [dependencies]
 libp2p = { git = "https://github.com/sigp/rust-libp2p", rev= "71cf486b4d992862f5a05f9f4ef5e5c1631f4add", package = "libp2p" }
-hex = "0.3"
-serde = "1.0.102"
-serde_derive = "1.0.102"
+discv5 = { version = "0.1.0-alpha.5", features = ["libp2p"] }
+tiny-keccak = "2.0.2"
+hex = "0.4.2"
+serde = { version = "1.0.110", features = ["derive"] }
+serde_derive = "1.0.110"
 slog = { version = "2.5.2", features = ["max_level_trace"] }
 tokio = "0.1.22"
-tokio-compat = { version = "0.1.5", features = ["rt-full"] }
+tokio_02 = { version = "0.2.21", features = ["time", "macros"], package="tokio" }
+tokio-compat = { version = "0.1.5", features = ["rt-full"], package="tokio-compat" }
 tokio-io = "0.1.12"
 futures = "0.1.29"
-error-chain = "0.12.1"
+futures_03 = { version = "0.3.5", package = "futures" }
+error-chain = "0.12.2"
 dirs = "2.0.2"
-fnv = "1.0.6"
+fnv = "1.0.7"
 unsigned-varint = "0.2.3"
 tokio-io-timeout = "0.3.1"
-smallvec = "1.0.0"
-lru = "0.4.3"
-parking_lot = "0.9.0"
+smallvec = "1.4.0"
+lru = "0.5.1"
+parking_lot = "0.10.2"
 sha2 = "0.8.2"
-base64 = "0.11.0"
-snap = "1"
+base64 = "0.12.1"
+snap = "1.0.0"
 target_info = "0.1.0"
 bytes = "0.4.12"
+
+#[dependencies.libp2p]
+##version = "0.19.1"
+#git = "https://github.com/sigp/rust-libp2p"
+#rev = "a6232506278b9e686248f8d04b79400861b143c2"
+#default-features = false
+#features = ["websocket", "identify", "mplex", "yamux", "noise", "gossipsub", "dns", "secio", "tcp-tokio"] 
+
+[dev-dependencies]
+#tokio = { version = "0.2.21", features = ["full"] }
+slog-stdlog = "4.0.0"
+slog-term = "2.5.0"
+slog-async = "2.5.0"
+tempdir = "0.3.7"
+exit-future = "0.2.0"

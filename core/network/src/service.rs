@@ -2,6 +2,8 @@ use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::multiaddr::Protocol;
 use crate::rpc::RPCEvent;
 use crate::types::error;
+use crate::discovery::enr;
+use crate::EnrExt;
 use crate::{EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash};
 use futures::prelude::*;
 use futures::Stream;
@@ -65,16 +67,26 @@ impl Service {
             load_private_key(config, &log)
         };
 
-        // load the private key from CLI flag, disk or generate a new one
-        let local_peer_id = PeerId::from(local_keypair.public());
+        // Create an ENR or load from disk if appropriate
+        let enr =
+        enr::build_or_load_enr(local_keypair.clone(), config, enr_fork_id.clone(), &log)?;
+        let local_peer_id = enr.peer_id();
         info!(log, "Libp2p Service"; "peer_id" => format!("{:?}", local_peer_id));
 
         // set up a collection of variables accessible outside of the network crate
         let network_globals = Arc::new(NetworkGlobals::new(
-            local_peer_id.clone(),
+            enr.clone(),
             config.libp2p_port,
             config.discovery_port,
         ));
+
+        let discovery_string = if config.disable_discovery {
+            "None".into()
+        } else {
+            config.discovery_port.to_string()
+        };
+        debug!(log, "Attempting to open listening ports"; "address" => format!("{}", config.listen_address), "tcp_port" => config.libp2p_port, "udp_port" => discovery_string);
+
 
         let mut swarm = {
             // Set up the transport - tcp/ws with noise/secio and mplex/yamux
@@ -229,48 +241,6 @@ impl Stream for Service {
                 _ => break,
             }
         }
-
-        // check if peers need to be banned
-        loop {
-            match self.peers_to_ban.poll() {
-                Ok(Async::Ready(Some(peer_id))) => {
-                    let peer_id = peer_id.into_inner();
-                    Swarm::ban_peer_id(&mut self.swarm, peer_id.clone());
-                    // TODO: Correctly notify protocols of the disconnect
-                    // TODO: Also remove peer from the DHT: https://github.com/sigp/lighthouse/issues/629
-                    let dummy_connected_point = ConnectedPoint::Dialer {
-                        address: "/ip4/0.0.0.0"
-                            .parse::<Multiaddr>()
-                            .expect("valid multiaddr"),
-                    };
-                    self.swarm
-                        .inject_disconnected(&peer_id, dummy_connected_point);
-                    // inform the behaviour that the peer has been banned
-                    self.swarm.peer_banned(peer_id);
-                }
-                Ok(Async::NotReady) | Ok(Async::Ready(None)) => break,
-                Err(e) => {
-                    warn!(self.log, "Peer banning queue failed"; "error" => format!("{:?}", e));
-                }
-            }
-        }
-
-        // un-ban peer if it's timeout has expired
-        loop {
-            match self.peer_ban_timeout.poll() {
-                Ok(Async::Ready(Some(peer_id))) => {
-                    let peer_id = peer_id.into_inner();
-                    debug!(self.log, "Peer has been unbanned"; "peer" => format!("{:?}", peer_id));
-                    self.swarm.peer_unbanned(&peer_id);
-                    Swarm::unban_peer_id(&mut self.swarm, peer_id);
-                }
-                Ok(Async::NotReady) | Ok(Async::Ready(None)) => break,
-                Err(e) => {
-                    warn!(self.log, "Peer banning timeout queue failed"; "error" => format!("{:?}", e));
-                }
-            }
-        }
-
         Ok(Async::NotReady)
     }
 }

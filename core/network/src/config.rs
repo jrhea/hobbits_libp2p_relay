@@ -1,6 +1,7 @@
 extern crate target_info;
-use crate::{error, CombinedKey, Enr, DEFAULT_CLIENT_NAME};
-use libp2p::discv5::{Discv5Config, Discv5ConfigBuilder};
+use crate::Enr;
+use crate::{error, DEFAULT_CLIENT_NAME};
+use discv5::{Discv5Config, Discv5ConfigBuilder};
 use libp2p::gossipsub::{GossipsubConfig, GossipsubConfigBuilder, GossipsubMessage, MessageId};
 use libp2p::Multiaddr;
 use serde_derive::{Deserialize, Serialize};
@@ -61,10 +62,13 @@ pub struct Config {
     pub discv5_config: Discv5Config,
 
     /// List of nodes to initially connect to.
-    pub boot_nodes: Vec<Enr<CombinedKey>>,
+    pub boot_nodes: Vec<Enr>,
 
     /// List of libp2p nodes to initially connect to.
     pub libp2p_nodes: Vec<Multiaddr>,
+
+    /// Disables the discovery protocol from starting.
+    pub disable_discovery: bool,
 
     /// List of extra topics to initially subscribe to as strings.
     pub topics: Vec<String>,
@@ -111,14 +115,15 @@ impl Default for Config {
 
         // discv5 configuration
         let discv5_config = Discv5ConfigBuilder::new()
+            .enable_packet_filter()
+            .session_cache_capacity(1000)
             .request_timeout(Duration::from_secs(4))
             .request_retries(2)
-            .enr_update(true) // update IP based on PONG responses
-            .enr_peer_update_min(5) // prevents NAT's should be raised for mainnet
+            .enr_peer_update_min(2) // prevents NAT's should be raised for mainnet
             .query_parallelism(5)
-            .query_timeout(Duration::from_secs(60))
+            .query_timeout(Duration::from_secs(30))
             .query_peer_timeout(Duration::from_secs(2))
-            .ip_limit(false) // limits /24 IP's in buckets. Enable for mainnet
+            .ip_limit() // limits /24 IP's in buckets.
             .ping_interval(Duration::from_secs(300))
             .build();
 
@@ -138,6 +143,7 @@ impl Default for Config {
             discv5_config,
             boot_nodes: vec![],
             libp2p_nodes: vec![],
+            disable_discovery: true,
             topics: vec![],
             propagation_percentage: None,
         }

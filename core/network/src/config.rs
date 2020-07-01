@@ -143,7 +143,7 @@ impl Default for Config {
             discv5_config,
             boot_nodes: vec![],
             libp2p_nodes: vec![],
-            disable_discovery: true,
+            disable_discovery: false,
             topics: vec![],
             propagation_percentage: None,
         }

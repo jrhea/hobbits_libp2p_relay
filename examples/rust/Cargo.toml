@@ -10,8 +10,9 @@ include = [
 
 [dependencies]
 mothra = { path = "../../core"}
-tokio = "0.1.22"
-tokio-compat = { version = "0.1.5", features = ["rt-full"] }
+tokio = { version = "0.2.21", features = ["full"] }
+futures = "0.3.5"
+exit-future = "0.2.0"
 slog-term = "^2.4.0"
 slog-async = "^2.3.0"
 slog = { version = "2.5.2" , features = ["max_level_trace"] }

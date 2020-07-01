@@ -1,18 +1,24 @@
 pub mod behaviour;
 mod config;
 mod discovery;
+mod executor;
+mod hashset_delay;
+mod peer_manager;
 pub mod rpc;
 mod service;
 pub mod types;
 
-pub use crate::types::{error, Enr, EnrBitfield, EnrForkId, GossipTopic, NetworkGlobals, PeerInfo};
+pub use crate::types::{error, Enr, EnrBitfield, EnrForkId, GossipTopic, NetworkGlobals};
+pub use behaviour::{BehaviourEvent, PeerRequestId, Request, Response};
 pub use config::unused_port;
 pub use config::Config as NetworkConfig;
 pub use discovery::{CombinedKeyExt, EnrExt};
 pub use discv5;
+pub use executor::TaskExecutor;
+pub use hashset_delay::HashSetDelay;
 pub use libp2p::gossipsub::{MessageId, Topic, TopicHash};
-pub use libp2p::{multiaddr, Multiaddr, PeerId, Swarm};
-pub use rpc::{RPCErrorResponse, RPCEvent, RPCRequest, RPCResponse};
-pub use service::{Libp2pEvent, Service};
-
+pub use libp2p::{core::ConnectedPoint, PeerId, Swarm};
+pub use libp2p::{multiaddr, Multiaddr};
+pub use peer_manager::{client::Client, PeerDB, PeerInfo};
+pub use service::{Libp2pEvent, Service, NETWORK_KEY_FILENAME};
 pub const DEFAULT_CLIENT_NAME: &str = "mothra";

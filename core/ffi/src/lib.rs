@@ -2,20 +2,21 @@ use cast::i16;
 use env_logger::Env;
 use mothra::{
     cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage, Subscriber,
+    TaskExecutor,
 };
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::sync::Arc;
 use std::{process, slice, str};
+use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
-use tokio_compat::runtime::Runtime;
 
 struct Context {
     runtime: Runtime,
     network_globals: Arc<NetworkGlobals>,
     network_send: mpsc::UnboundedSender<NetworkMessage>,
-    network_exit: oneshot::Sender<()>,
+    network_exit_signal: exit_future::Signal,
     log: slog::Logger,
 }
 
@@ -163,17 +164,12 @@ pub unsafe extern "C" fn network_start(
             args_vec.push(s.to_string());
         }
     }
-
-    let runtime = Runtime::new()
-        .map_err(|e| format!("Failed to start runtime: {:?}", e))
-        .unwrap();
     let matches = cli_app()
         .get_matches_from_safe(args_vec.iter())
         .unwrap_or_else(|e| {
             eprintln!("{}", e);
             process::exit(1);
         });
-
     let config = Mothra::get_config(client_name, client_version, protocol_version, &matches);
     // configure logging
     env_logger::Builder::from_env(Env::default()).init();
@@ -191,23 +187,26 @@ pub unsafe extern "C" fn network_start(
     };
     let slog = Logger::root(drain.fuse(), o!());
     let log = slog.new(o!("FFI" => "Mothra"));
-    // build the current enr_fork_id for adding to our local ENR
-    //TODO
+    // TODO: build the current enr_fork_id for adding to our local ENR
     let enr_fork_id = [0u8; 32].to_vec();
     let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
-    let (network_globals, network_send, network_exit) = Mothra::new(
-        config,
-        enr_fork_id,
-        &runtime.executor(),
-        client,
-        log.clone(),
-    )
-    .unwrap();
+    let mut runtime = Runtime::new()
+        .map_err(|e| format!("Failed to start runtime: {:?}", e))
+        .unwrap();
+    let (network_exit_signal, exit) = exit_future::signal();
+    let task_executor = TaskExecutor::new(
+        runtime.handle().clone(),
+        exit,
+        log.new(o!("FFI" => "TaskExecutor")),
+    );
+    let (network_globals, network_send) = runtime
+        .block_on(async { Mothra::new(config, enr_fork_id, &task_executor, client, log.clone()) })
+        .unwrap();
     CONTEXT.push(Context {
         runtime,
         network_globals,
         network_send,
-        network_exit,
+        network_exit_signal,
         log: log.clone(),
     });
 }

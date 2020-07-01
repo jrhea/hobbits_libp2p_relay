@@ -7,12 +7,12 @@ pub use enr::CombinedKey;
 pub use enr_ext::{CombinedKeyExt, EnrExt};
 pub use libp2p::core::identity::Keypair;
 
-use crate::types::EnrForkId;
+use crate::types::{EnrForkId, SubnetId};
 use crate::{error, Enr, NetworkConfig, NetworkGlobals};
 use discv5::{enr::NodeId, Discv5, Discv5Event};
 use enr::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
-use futures_03::prelude::*;
-use futures_03::stream::FuturesUnordered;
+use futures::prelude::*;
+use futures::stream::FuturesUnordered;
 use libp2p::core::PeerId;
 use lru::LruCache;
 use slog::{crit, debug, info, trace, warn};
@@ -25,7 +25,7 @@ use std::{
     task::{Context, Poll},
     time::Instant,
 };
-use tokio_02::sync::mpsc;
+use tokio::sync::mpsc;
 
 /// Local ENR storage filename.
 pub const ENR_FILENAME: &str = "enr.dat";
@@ -54,7 +54,7 @@ pub enum DiscoveryEvent {
 enum QueryType {
     /// We are searching for subnet peers.
     Subnet {
-        subnet_id: Vec<u8>,
+        subnet_id: SubnetId,
         min_ttl: Option<Instant>,
         retries: usize,
     },

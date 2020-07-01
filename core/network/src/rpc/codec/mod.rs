@@ -1,29 +1,28 @@
 pub(crate) mod base;
-pub(crate) mod serenity;
+pub(crate) mod snappy;
 
 use self::base::{BaseInboundCodec, BaseOutboundCodec};
-use self::serenity::{SerenityInboundCodec, SerenityOutboundCodec};
+use self::snappy::{SnappyInboundCodec, SnappyOutboundCodec};
 use crate::rpc::protocol::RPCError;
-use crate::rpc::{RPCErrorResponse, RPCRequest};
-use bytes::BytesMut;
-use tokio::codec::{Decoder, Encoder};
+use crate::rpc::{RPCCodedResponse, RPCRequest};
+use libp2p::bytes::BytesMut;
+use tokio_util::codec::{Decoder, Encoder};
 
 // Known types of codecs
 pub enum InboundCodec {
-    Serenity(BaseInboundCodec<SerenityInboundCodec>),
+    Snappy(BaseInboundCodec<SnappyInboundCodec>),
 }
 
 pub enum OutboundCodec {
-    Serenity(BaseOutboundCodec<SerenityOutboundCodec>),
+    Snappy(BaseOutboundCodec<SnappyOutboundCodec>),
 }
 
-impl Encoder for InboundCodec {
-    type Item = RPCErrorResponse;
+impl Encoder<RPCCodedResponse> for InboundCodec {
     type Error = RPCError;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: RPCCodedResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
         match self {
-            InboundCodec::Serenity(codec) => codec.encode(item, dst),
+            InboundCodec::Snappy(codec) => codec.encode(item, dst),
         }
     }
 }
@@ -34,29 +33,28 @@ impl Decoder for InboundCodec {
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         match self {
-            InboundCodec::Serenity(codec) => codec.decode(src),
+            InboundCodec::Snappy(codec) => codec.decode(src),
         }
     }
 }
 
-impl Encoder for OutboundCodec {
-    type Item = RPCRequest;
+impl Encoder<RPCRequest> for OutboundCodec {
     type Error = RPCError;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: RPCRequest, dst: &mut BytesMut) -> Result<(), Self::Error> {
         match self {
-            OutboundCodec::Serenity(codec) => codec.encode(item, dst),
+            OutboundCodec::Snappy(codec) => codec.encode(item, dst),
         }
     }
 }
 
 impl Decoder for OutboundCodec {
-    type Item = RPCErrorResponse;
+    type Item = RPCCodedResponse;
     type Error = RPCError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         match self {
-            OutboundCodec::Serenity(codec) => codec.decode(src),
+            OutboundCodec::Snappy(codec) => codec.decode(src),
         }
     }
 }

@@ -1,10 +1,11 @@
 extern crate target_info;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use env_logger::Env;
-use mothra::{cli_app, gossip, Mothra, Subscriber};
+use mothra::{cli_app, gossip, Mothra, Subscriber, TaskExecutor};
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::{thread, time};
-use tokio_compat::runtime::Runtime;
+use tokio::runtime::Runtime;
+use tokio::{signal, task};
 
 struct Client;
 
@@ -59,10 +60,6 @@ fn main() {
         println!("Foo flag found");
     }
 
-    let runtime = Runtime::new()
-        .map_err(|e| format!("Failed to start runtime: {:?}", e))
-        .unwrap();
-    let executor = runtime.executor();
     let config = Mothra::get_config(
         Some("rust-example".into()),
         Some(format!("v{}-unstable", env!("CARGO_PKG_VERSION"))),
@@ -84,19 +81,44 @@ fn main() {
         _ => drain.filter_level(Level::Info),
     };
     let slog = Logger::root(drain.fuse(), o!());
-    let log = slog.new(o!("Rust-Example" => "Mothra"));
+    let log = slog.new(o!("Rust-Example" => "Rust-Example"));
     let enr_fork_id = [0u8; 32].to_vec();
     let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
-    let (network_globals, network_send, network_exit) =
-        Mothra::new(config, enr_fork_id, &executor, client, log.clone()).unwrap();
+    let mut runtime = Runtime::new()
+        .map_err(|e| format!("Failed to start runtime: {:?}", e))
+        .unwrap();
+    let (network_exit_signal, exit) = exit_future::signal();
+    let task_executor = TaskExecutor::new(
+        runtime.handle().clone(),
+        exit,
+        log.new(o!("Rust-Example" => "TaskExecutor")),
+    );
+    let mothra_log = log.new(o!("Rust-Example" => "Mothra"));
+    runtime.block_on(async move {
+        task::spawn_blocking(move || {
+            let (network_globals, network_send) = Mothra::new(
+                config,
+                enr_fork_id,
+                &task_executor,
+                client,
+                mothra_log.clone(),
+            )
+            .unwrap();
+            let dur = time::Duration::from_secs(5);
+            loop {
+                thread::sleep(dur);
+                let topic = "/mothra/topic1".to_string();
+                let data = format!("Hello from Rust.  Elapsed time: {:?}", start.elapsed())
+                    .as_bytes()
+                    .to_vec();
+                gossip(network_send.clone(), topic, data, mothra_log.clone());
+            }
+        });
+        // block the current thread until SIGINT is received.
+        signal::ctrl_c().await.expect("failed to listen for event");
+    });
 
-    let dur = time::Duration::from_secs(5);
-    loop {
-        thread::sleep(dur);
-        let topic = "/mothra/topic1".to_string();
-        let data = format!("Hello from Rust.  Elapsed time: {:?}", start.elapsed())
-            .as_bytes()
-            .to_vec();
-        gossip(network_send.clone(), topic, data, log.clone());
-    }
+    warn!(log, "Sending shutdown signal.");
+    let _ = network_exit_signal.fire();
+    runtime.shutdown_timeout(tokio::time::Duration::from_millis(300));
 }

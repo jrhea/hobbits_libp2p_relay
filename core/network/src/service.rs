@@ -1,47 +1,76 @@
-use crate::behaviour::{Behaviour, BehaviourEvent};
+use crate::behaviour::{Behaviour, BehaviourEvent, PeerRequestId, Request, Response};
 use crate::discovery::enr;
 use crate::multiaddr::Protocol;
-use crate::rpc::RPCEvent;
-use crate::types::error;
+use crate::rpc::{RPCResponseErrorCode, RequestId};
+use crate::types::{error, GossipKind};
 use crate::EnrExt;
-use crate::{EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash};
+use crate::{Enr, EnrForkId, NetworkConfig, NetworkGlobals, TaskExecutor};
 use futures::prelude::*;
-use futures::Stream;
 use libp2p::core::{
     identity::Keypair,
     multiaddr::Multiaddr,
     muxing::StreamMuxerBox,
-    nodes::Substream,
     transport::boxed::Boxed,
     upgrade::{InboundUpgradeExt, OutboundUpgradeExt},
     ConnectedPoint,
 };
-use libp2p::gossipsub::MessageId;
-use libp2p::{core, noise, secio, swarm::NetworkBehaviour, PeerId, Swarm, Transport};
-use slog::{crit, debug, error, info, trace, warn};
+use libp2p::{
+    core, noise,
+    swarm::{NetworkBehaviour, SwarmBuilder, SwarmEvent},
+    PeerId, Swarm, Transport,
+};
+use slog::{crit, debug, info, o, trace, warn};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::timer::DelayQueue;
+use tokio::time::DelayQueue;
 
-type Libp2pStream = Boxed<(PeerId, StreamMuxerBox), Error>;
-type Libp2pBehaviour = Behaviour<Substream<StreamMuxerBox>>;
-
-const NETWORK_KEY_FILENAME: &str = "key";
+pub const NETWORK_KEY_FILENAME: &str = "key";
 /// The time in milliseconds to wait before banning a peer. This allows for any Goodbye messages to be
 /// flushed and protocols to be negotiated.
 const BAN_PEER_WAIT_TIMEOUT: u64 = 200;
+/// The maximum simultaneous libp2p connections per peer.
+const MAX_CONNECTIONS_PER_PEER: usize = 1;
+
+/// The types of events than can be obtained from polling the libp2p service.
+///
+/// This is a subset of the events that a libp2p swarm emits.
+#[derive(Debug)]
+pub enum Libp2pEvent {
+    /// A behaviour event
+    Behaviour(BehaviourEvent),
+    /// A new listening address has been established.
+    NewListenAddr(Multiaddr),
+    /// A peer has established at least one connection.
+    PeerConnected {
+        /// The peer that connected.
+        peer_id: PeerId,
+        /// Whether the peer was a dialer or listener.
+        endpoint: ConnectedPoint,
+    },
+    /// A peer no longer has any connections, i.e is disconnected.
+    PeerDisconnected {
+        /// The peer the disconnected.
+        peer_id: PeerId,
+        /// Whether the peer was a dialer or a listener.
+        endpoint: ConnectedPoint,
+    },
+}
 
 /// The configuration and state of the libp2p components for the beacon node.
 pub struct Service {
     /// The libp2p Swarm handler.
     //TODO: Make this private
-    pub swarm: Swarm<Libp2pStream, Libp2pBehaviour>,
+    pub swarm: Swarm<Behaviour>,
 
     /// This node's PeerId.
     pub local_peer_id: PeerId,
+
+    /// Used for managing the state of peers.
+    network_globals: Arc<NetworkGlobals>,
 
     /// A current list of peers to ban after a given timeout.
     peers_to_ban: DelayQueue<PeerId>,
@@ -55,30 +84,30 @@ pub struct Service {
 
 impl Service {
     pub fn new(
-        config: &mut NetworkConfig,
+        executor: TaskExecutor,
+        config: &NetworkConfig,
         enr_fork_id: EnrForkId,
-        log: slog::Logger,
+        log: &slog::Logger,
     ) -> error::Result<(Arc<NetworkGlobals>, Self)> {
+        let log = log.new(o!("service"=> "libp2p"));
         trace!(log, "Libp2p Service starting");
-
-        let local_keypair = if let Some(hex_bytes) = &config.secret_key_hex {
-            keypair_from_hex(hex_bytes)?
-        } else {
-            load_private_key(config, &log)
-        };
+        // initialise the node's ID
+        let local_keypair = load_private_key(config, &log);
 
         // Create an ENR or load from disk if appropriate
         let enr = enr::build_or_load_enr(local_keypair.clone(), config, enr_fork_id.clone(), &log)?;
-        let local_peer_id = enr.peer_id();
-        info!(log, "Libp2p Service"; "peer_id" => format!("{:?}", local_peer_id));
 
+        let local_peer_id = enr.peer_id();
         // set up a collection of variables accessible outside of the network crate
         let network_globals = Arc::new(NetworkGlobals::new(
             enr.clone(),
+            enr_fork_id.clone(),
             config.libp2p_port,
             config.discovery_port,
+            &log,
         ));
 
+        info!(log, "Libp2p Service"; "peer_id" => format!("{:?}", enr.peer_id()));
         let discovery_string = if config.disable_discovery {
             "None".into()
         } else {
@@ -87,17 +116,23 @@ impl Service {
         debug!(log, "Attempting to open listening ports"; "address" => format!("{}", config.listen_address), "tcp_port" => config.libp2p_port, "udp_port" => discovery_string);
 
         let mut swarm = {
-            // Set up the transport - tcp/ws with noise/secio and mplex/yamux
-            let transport = build_transport(local_keypair.clone());
+            // Set up the transport - tcp/ws with noise and yamux/mplex
+            let transport = build_transport(local_keypair.clone())
+                .map_err(|e| format!("Failed to build transport: {:?}", e))?;
             // Mothra network behaviour
-            let behaviour = Behaviour::new(
-                &local_keypair,
-                config,
-                network_globals.clone(),
-                enr_fork_id,
-                &log,
-            )?;
-            Swarm::new(transport, behaviour, local_peer_id.clone())
+            let behaviour = Behaviour::new(&local_keypair, config, network_globals.clone(), &log)?;
+
+            // use the executor for libp2p
+            struct Executor(TaskExecutor);
+            impl libp2p::core::Executor for Executor {
+                fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
+                    self.0.spawn(f, "libp2p");
+                }
+            }
+            SwarmBuilder::new(transport, behaviour, local_peer_id.clone())
+                .peer_connection_limit(MAX_CONNECTIONS_PER_PEER)
+                .executor(Box::new(Executor(executor)))
+                .build()
         };
 
         // listen on the specified address
@@ -141,43 +176,31 @@ impl Service {
         }
 
         // attempt to connect to any specified boot-nodes
-        for bootnode_enr in &config.boot_nodes {
+        let mut boot_nodes = config.boot_nodes.clone();
+        boot_nodes.dedup();
+
+        for bootnode_enr in boot_nodes {
             for multiaddr in &bootnode_enr.multiaddr() {
                 // ignore udp multiaddr if it exists
                 let components = multiaddr.iter().collect::<Vec<_>>();
                 if let Protocol::Udp(_) = components[1] {
                     continue;
                 }
-                dial_addr(multiaddr);
+
+                if !network_globals
+                    .peers
+                    .read()
+                    .is_connected_or_dialing(&bootnode_enr.peer_id())
+                {
+                    dial_addr(multiaddr);
+                }
             }
         }
-
-        // subscribe to default gossipsub topics
-        let mut topics: Vec<GossipTopic> = vec![];
-        // Add any topics specified by the user
-        topics.append(
-            &mut config
-                .topics
-                .iter()
-                .cloned()
-                .map(GossipTopic::new)
-                .collect(),
-        );
-
-        let mut subscribed_topics = vec![];
-        for topic in topics {
-            if swarm.subscribe(topic.clone()) {
-                debug!(log, "Subscribed to topic: {:?}", topic);
-                subscribed_topics.push(topic);
-            } else {
-                warn!(log, "Could not subscribe to topic: {:?}", topic)
-            }
-        }
-        info!(log, "Subscribed to topics"; "topics" => format!("{:?}", subscribed_topics));
 
         let service = Service {
             local_peer_id,
             swarm,
+            network_globals: network_globals.clone(),
             peers_to_ban: DelayQueue::new(),
             peer_ban_timeout: DelayQueue::new(),
             log,
@@ -188,88 +211,180 @@ impl Service {
 
     /// Adds a peer to be banned for a period of time, specified by a timeout.
     pub fn disconnect_and_ban_peer(&mut self, peer_id: PeerId, timeout: Duration) {
-        error!(self.log, "Disconnecting and banning peer"; "peer_id" => format!("{:?}", peer_id), "timeout" => format!("{:?}", timeout));
+        warn!(self.log, "Disconnecting and banning peer"; "peer_id" => peer_id.to_string(), "timeout" => format!("{:?}", timeout));
         self.peers_to_ban.insert(
             peer_id.clone(),
             Duration::from_millis(BAN_PEER_WAIT_TIMEOUT),
         );
         self.peer_ban_timeout.insert(peer_id, timeout);
     }
-}
 
-impl Stream for Service {
-    type Item = Libp2pEvent;
-    type Error = error::Error;
+    /// Sends a request to a peer, with a given Id.
+    pub fn send_request(&mut self, peer_id: PeerId, request_id: RequestId, request: Request) {
+        self.swarm.send_request(peer_id, request_id, request);
+    }
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    /// Informs the peer that their request failed.
+    pub fn respond_with_error(
+        &mut self,
+        peer_id: PeerId,
+        id: PeerRequestId,
+        error: RPCResponseErrorCode,
+        reason: String,
+    ) {
+        self.swarm._send_error_reponse(peer_id, id, error, reason);
+    }
+
+    /// Sends a response to a peer's request.
+    pub fn send_response(&mut self, peer_id: PeerId, id: PeerRequestId, response: Response) {
+        self.swarm.send_successful_response(peer_id, id, response);
+    }
+
+    pub async fn next_event(&mut self) -> Libp2pEvent {
         loop {
-            match self.swarm.poll() {
-                Ok(Async::Ready(Some(event))) => match event {
-                    BehaviourEvent::GossipMessage {
-                        id,
-                        source,
-                        topics,
-                        message,
-                    } => {
-                        trace!(self.log, "Gossipsub message received"; "service" => "Swarm");
-                        return Ok(Async::Ready(Some(Libp2pEvent::PubsubMessage {
-                            id,
-                            source,
-                            topics,
-                            message,
-                        })));
+            tokio::select! {
+                event = self.swarm.next_event() => {
+                    match event {
+                        SwarmEvent::Behaviour(behaviour) => {
+                            return Libp2pEvent::Behaviour(behaviour)
+                        }
+                        SwarmEvent::ConnectionEstablished {
+                            peer_id,
+                            endpoint,
+                            num_established,
+                        } => {
+                            debug!(self.log, "Connection established"; "peer_id" => peer_id.to_string(), "connections" => num_established.get());
+                            // if this is the first connection inform the network layer a new connection
+                            // has been established and update the db
+                            if num_established.get() == 1 {
+                                // update the peerdb
+                                match endpoint {
+                                    ConnectedPoint::Listener { .. } => {
+                                        self.swarm.peer_manager().connect_ingoing(&peer_id);
+                                    }
+                                    ConnectedPoint::Dialer { .. } => self
+                                        .network_globals
+                                        .peers
+                                        .write()
+                                        .connect_outgoing(&peer_id),
+                                }
+                                return Libp2pEvent::PeerConnected { peer_id, endpoint };
+                            }
+                        }
+                        SwarmEvent::ConnectionClosed {
+                            peer_id,
+                            cause,
+                            endpoint,
+                            num_established,
+                        } => {
+                            debug!(self.log, "Connection closed"; "peer_id"=> peer_id.to_string(), "cause" => cause.to_string(), "connections" => num_established);
+                            if num_established == 0 {
+                                // update the peer_db
+                                self.swarm.peer_manager().notify_disconnect(&peer_id);
+                                // the peer has disconnected
+                                return Libp2pEvent::PeerDisconnected {
+                                    peer_id,
+                                    endpoint,
+                                };
+                            }
+                        }
+                        SwarmEvent::NewListenAddr(multiaddr) => {
+                            return Libp2pEvent::NewListenAddr(multiaddr)
+                        }
+
+                        SwarmEvent::IncomingConnection {
+                            local_addr,
+                            send_back_addr,
+                        } => {
+                            debug!(self.log, "Incoming connection"; "our_addr" => local_addr.to_string(), "from" => send_back_addr.to_string())
+                        }
+                        SwarmEvent::IncomingConnectionError {
+                            local_addr,
+                            send_back_addr,
+                            error,
+                        } => {
+                            debug!(self.log, "Failed incoming connection"; "our_addr" => local_addr.to_string(), "from" => send_back_addr.to_string(), "error" => error.to_string())
+                        }
+                        SwarmEvent::BannedPeer {
+                            peer_id,
+                            endpoint: _,
+                        } => {
+                            debug!(self.log, "Attempted to dial a banned peer"; "peer_id" => peer_id.to_string())
+                        }
+                        SwarmEvent::UnreachableAddr {
+                            peer_id,
+                            address,
+                            error,
+                            attempts_remaining,
+                        } => {
+                            debug!(self.log, "Failed to dial address"; "peer_id" => peer_id.to_string(), "address" => address.to_string(), "error" => error.to_string(), "attempts_remaining" => attempts_remaining);
+                            self.swarm.peer_manager().notify_disconnect(&peer_id);
+                        }
+                        SwarmEvent::UnknownPeerUnreachableAddr { address, error } => {
+                            debug!(self.log, "Peer not known at dialed address"; "address" => address.to_string(), "error" => error.to_string());
+                        }
+                        SwarmEvent::ExpiredListenAddr(multiaddr) => {
+                            debug!(self.log, "Listen address expired"; "multiaddr" => multiaddr.to_string())
+                        }
+                        SwarmEvent::ListenerClosed { addresses, reason } => {
+                            debug!(self.log, "Listener closed"; "addresses" => format!("{:?}", addresses), "reason" => format!("{:?}", reason))
+                        }
+                        SwarmEvent::ListenerError { error } => {
+                            debug!(self.log, "Listener error"; "error" => format!("{:?}", error.to_string()))
+                        }
+                        SwarmEvent::Dialing(peer_id) => {
+                            self.swarm.peer_manager().dialing_peer(&peer_id);
+                        }
                     }
-                    BehaviourEvent::RPC(peer_id, event) => {
-                        return Ok(Async::Ready(Some(Libp2pEvent::RPC(peer_id, event))));
-                    }
-                    BehaviourEvent::PeerDialed(peer_id) => {
-                        return Ok(Async::Ready(Some(Libp2pEvent::PeerDialed(peer_id))));
-                    }
-                    BehaviourEvent::PeerDisconnected(peer_id) => {
-                        return Ok(Async::Ready(Some(Libp2pEvent::PeerDisconnected(peer_id))));
-                    }
-                    BehaviourEvent::PeerSubscribed(peer_id, topic) => {
-                        return Ok(Async::Ready(Some(Libp2pEvent::PeerSubscribed(
-                            peer_id, topic,
-                        ))));
-                    }
-                },
-                Ok(Async::Ready(None)) => unreachable!("Swarm stream shouldn't end"),
-                Ok(Async::NotReady) => break,
-                _ => break,
+                }
+                Some(Ok(peer_to_ban)) = self.peers_to_ban.next() => {
+                    let peer_id = peer_to_ban.into_inner();
+                    Swarm::ban_peer_id(&mut self.swarm, peer_id.clone());
+                    // TODO: Correctly notify protocols of the disconnect
+                    // TODO: Also remove peer from the DHT: https://github.com/sigp/lighthouse/issues/629
+                    self.swarm.inject_disconnected(&peer_id);
+                    // inform the behaviour that the peer has been banned
+                    self.swarm.peer_banned(peer_id);
+                }
+                Some(Ok(peer_to_unban)) = self.peer_ban_timeout.next() => {
+                    debug!(self.log, "Peer has been unbanned"; "peer" => format!("{:?}", peer_to_unban));
+                    let unban_peer = peer_to_unban.into_inner();
+                    self.swarm.peer_unbanned(&unban_peer);
+                    Swarm::unban_peer_id(&mut self.swarm, unban_peer);
+                }
             }
         }
-        Ok(Async::NotReady)
     }
 }
 
-/// The implementation supports TCP/IP, WebSockets over TCP/IP, noise/secio as the encryption layer, and
-/// mplex or yamux as the multiplexing layer.
-fn build_transport(local_private_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox), Error> {
-    // TODO: The Wire protocol currently doesn't specify encryption and this will need to be customised
-    // in the future.
-    let transport = libp2p::tcp::TcpConfig::new().nodelay(true);
-    let transport = libp2p::dns::DnsConfig::new(transport);
+/// The implementation supports TCP/IP, WebSockets over TCP/IP, noise as the encryption layer, and
+/// yamux or mplex as the multiplexing layer.
+
+fn build_transport(
+    local_private_key: Keypair,
+) -> Result<Boxed<(PeerId, StreamMuxerBox), Error>, Error> {
+    let transport = libp2p::tcp::TokioTcpConfig::new().nodelay(true);
+    let transport = libp2p::dns::DnsConfig::new(transport)?;
     #[cfg(feature = "libp2p-websocket")]
     let transport = {
         let trans_clone = transport.clone();
-        transport.or_transport(websocket::WsConfig::new(trans_clone))
+        transport.or_transport(libp2p::websocket::WsConfig::new(trans_clone))
     };
     // Authentication
     let transport = transport
         .and_then(move |stream, endpoint| {
             let upgrade = core::upgrade::SelectUpgrade::new(
+                libp2p::secio::SecioConfig::new(local_private_key.clone()),
                 generate_noise_config(&local_private_key),
-                secio::SecioConfig::new(local_private_key),
             );
             core::upgrade::apply(stream, upgrade, endpoint, core::upgrade::Version::V1).and_then(
-                move |out| {
+                |out| async move {
                     match out {
-                        // Noise was negotiated
+                        // Secio was negotiated
                         core::either::EitherOutput::First((remote_id, out)) => {
                             Ok((core::either::EitherOutput::First(out), remote_id))
                         }
-                        // Secio was negotiated
+                        // Noise was negotiated
                         core::either::EitherOutput::Second((remote_id, out)) => {
                             Ok((core::either::EitherOutput::Second(out), remote_id))
                         }
@@ -280,44 +395,27 @@ fn build_transport(local_private_key: Keypair) -> Boxed<(PeerId, StreamMuxerBox)
         .timeout(Duration::from_secs(20));
 
     // Multiplexing
-    transport
+    let transport = transport
         .and_then(move |(stream, peer_id), endpoint| {
             let peer_id2 = peer_id.clone();
             let upgrade = core::upgrade::SelectUpgrade::new(
-                libp2p::yamux::Config::default(),
                 libp2p::mplex::MplexConfig::new(),
+                libp2p::yamux::Config::default(),
             )
             .map_inbound(move |muxer| (peer_id, muxer))
             .map_outbound(move |muxer| (peer_id2, muxer));
 
             core::upgrade::apply(stream, upgrade, endpoint, core::upgrade::Version::V1)
-                .map(|(id, muxer)| (id, core::muxing::StreamMuxerBox::new(muxer)))
+                .map_ok(|(id, muxer)| (id, core::muxing::StreamMuxerBox::new(muxer)))
         })
         .timeout(Duration::from_secs(20))
         .map_err(|err| Error::new(ErrorKind::Other, err))
-        .boxed()
+        .boxed();
+    Ok(transport)
 }
 
-#[derive(Debug)]
-/// Events that can be obtained from polling the Libp2p Service.
-pub enum Libp2pEvent {
-    /// An RPC response request has been received on the swarm.
-    RPC(PeerId, RPCEvent),
-    /// Initiated the connection to a new peer.
-    PeerDialed(PeerId),
-    /// A peer has disconnected.
-    PeerDisconnected(PeerId),
-    /// Received pubsub message.
-    PubsubMessage {
-        id: MessageId,
-        source: PeerId,
-        topics: Vec<TopicHash>,
-        message: Vec<u8>,
-    },
-    /// Subscribed to peer for a topic hash.
-    PeerSubscribed(PeerId, TopicHash),
-}
-
+// Useful helper functions for debugging. Currently not used in the client.
+#[allow(dead_code)]
 fn keypair_from_hex(hex_bytes: &str) -> error::Result<Keypair> {
     let hex_bytes = if hex_bytes.starts_with("0x") {
         hex_bytes[2..].to_string()
@@ -330,6 +428,7 @@ fn keypair_from_hex(hex_bytes: &str) -> error::Result<Keypair> {
         .and_then(keypair_from_bytes)
 }
 
+#[allow(dead_code)]
 fn keypair_from_bytes(mut bytes: Vec<u8>) -> error::Result<Keypair> {
     libp2p::core::identity::secp256k1::SecretKey::from_bytes(&mut bytes)
         .map(|secret| {
@@ -390,8 +489,8 @@ fn load_private_key(config: &NetworkConfig, log: &slog::Logger) -> Keypair {
 /// Generate authenticated XX Noise config from identity keys
 fn generate_noise_config(
     identity_keypair: &Keypair,
-) -> noise::NoiseAuthenticated<noise::XX, noise::X25519, ()> {
-    let static_dh_keys = noise::Keypair::<noise::X25519>::new()
+) -> noise::NoiseAuthenticated<noise::XX, noise::X25519Spec, ()> {
+    let static_dh_keys = noise::Keypair::<noise::X25519Spec>::new()
         .into_authentic(identity_keypair)
         .expect("signing can fail only once during starting a node");
     noise::NoiseConfig::xx(static_dh_keys).into_authenticated()

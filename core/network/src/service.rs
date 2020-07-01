@@ -1,8 +1,8 @@
 use crate::behaviour::{Behaviour, BehaviourEvent};
+use crate::discovery::enr;
 use crate::multiaddr::Protocol;
 use crate::rpc::RPCEvent;
 use crate::types::error;
-use crate::discovery::enr;
 use crate::EnrExt;
 use crate::{EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash};
 use futures::prelude::*;
@@ -68,8 +68,7 @@ impl Service {
         };
 
         // Create an ENR or load from disk if appropriate
-        let enr =
-        enr::build_or_load_enr(local_keypair.clone(), config, enr_fork_id.clone(), &log)?;
+        let enr = enr::build_or_load_enr(local_keypair.clone(), config, enr_fork_id.clone(), &log)?;
         let local_peer_id = enr.peer_id();
         info!(log, "Libp2p Service"; "peer_id" => format!("{:?}", local_peer_id));
 
@@ -86,7 +85,6 @@ impl Service {
             config.discovery_port.to_string()
         };
         debug!(log, "Attempting to open listening ports"; "address" => format!("{}", config.listen_address), "tcp_port" => config.libp2p_port, "udp_port" => discovery_string);
-
 
         let mut swarm = {
             // Set up the transport - tcp/ws with noise/secio and mplex/yamux

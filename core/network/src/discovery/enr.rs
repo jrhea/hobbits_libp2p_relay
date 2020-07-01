@@ -1,27 +1,14 @@
-pub use discv5::enr::{self, CombinedKey, EnrBuilder};
 use super::enr_ext::CombinedKeyExt;
 use super::ENR_FILENAME;
-use crate::types::{Enr, EnrForkId, EnrBitfield};
+use crate::types::{Enr, EnrBitfield, EnrForkId};
 use crate::NetworkConfig;
+pub use discv5::enr::{self, CombinedKey, EnrBuilder};
 use libp2p::core::identity::Keypair;
 use slog::{debug, warn};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
-
-/*
-use crate::{CombinedKey, Enr, EnrForkId, NetworkConfig};
-use libp2p::core::identity::Keypair;
-use libp2p::discv5::enr::EnrBuilder;
-use slog::{debug, warn};
-//use eth2_ssz::Encode;
-use std::convert::TryInto;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::str::FromStr;
-*/
 
 /// The ENR field specifying the fork id.
 pub const ETH2_ENR_KEY: &str = "eth2";

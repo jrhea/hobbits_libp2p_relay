@@ -7,6 +7,7 @@ pub use enr::CombinedKey;
 pub use enr_ext::{CombinedKeyExt, EnrExt};
 pub use libp2p::core::identity::Keypair;
 
+use crate::types::EnrForkId;
 use crate::{error, Enr, NetworkConfig, NetworkGlobals};
 use discv5::{enr::NodeId, Discv5, Discv5Event};
 use enr::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
@@ -25,27 +26,6 @@ use std::{
     time::Instant,
 };
 use tokio_02::sync::mpsc;
-use crate::types::EnrForkId;
-
-
-
-/*use crate::{error, CombinedKey, Enr, EnrForkId, NetworkConfig, NetworkGlobals, PeerInfo};
-use enr_helpers::{BITFIELD_ENR_KEY, ETH2_ENR_KEY};
-use futures::prelude::*;
-use libp2p::core::{identity::Keypair, ConnectedPoint, Multiaddr, PeerId};
-use libp2p::discv5::enr::NodeId;
-use libp2p::discv5::{Discv5, Discv5Event};
-use libp2p::multiaddr::Protocol;
-use libp2p::swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler};
-use slog::{crit, debug, info, trace, warn};
-use std::collections::HashSet;
-use std::net::SocketAddr;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::timer::Delay;
-*/
 
 /// Local ENR storage filename.
 pub const ENR_FILENAME: &str = "enr.dat";
@@ -104,7 +84,7 @@ impl QueryType {
     pub fn min_ttl(&self) -> Option<Instant> {
         match self {
             Self::FindPeers => None,
-            Self::Subnet { min_ttl, .. } => min_ttl.clone(),
+            Self::Subnet { min_ttl, .. } => *min_ttl,
         }
     }
 }
@@ -210,7 +190,7 @@ impl Discovery {
                 debug!(
                     log,
                     "Could not add peer to the local routing table";
-                    "error" => format!("{}", e)
+                    "error" => e.to_string()
                 )
             });
         }
@@ -269,7 +249,7 @@ impl Discovery {
             debug!(
                 self.log,
                 "Could not add peer to the local routing table";
-                "error" => format!("{}", e)
+                "error" => e.to_string()
             )
         }
     }
@@ -295,11 +275,9 @@ impl Discovery {
 
     /// Updates the `eth2` field of our local ENR.
     pub fn update_eth2_enr(&mut self, enr_fork_id: EnrForkId) {
-
-
         let _ = self
             .discv5
-            .enr_insert(ETH2_ENR_KEY.into(), enr_fork_id)
+            .enr_insert(ETH2_ENR_KEY, enr_fork_id)
             .map_err(|e| {
                 warn!(
                     self.log,
@@ -314,7 +292,7 @@ impl Discovery {
 
     /* Internal Functions */
 
-      /// Consume the discovery queue and initiate queries when applicable.
+    /// Consume the discovery queue and initiate queries when applicable.
     ///
     /// This also sanitizes the queue removing out-dated queries.
     fn process_queue(&mut self) {
@@ -336,7 +314,7 @@ impl Discovery {
                     self.find_peer_active = true;
                     self.start_query(QueryType::FindPeers, FIND_NODE_QUERY_CLOSEST_PEERS);
                 }
-                Some(QueryType::Subnet{..}) => {}
+                Some(QueryType::Subnet { .. }) => {}
                 None => {} // Queue is empty
             }
         }
@@ -394,9 +372,7 @@ impl Discovery {
                     subnet_id,
                     min_ttl,
                     retries,
-                } => {
-
-                }
+                } => {}
             }
         }
         None
@@ -469,6 +445,4 @@ impl Discovery {
         }
         Poll::Pending
     }
-
-
 }

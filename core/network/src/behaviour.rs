@@ -1,8 +1,6 @@
 use crate::discovery::Discovery;
 use crate::rpc::{RPCEvent, RPCMessage, RPC};
-use crate::{
-    error, Enr, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash,
-};
+use crate::{error, Enr, EnrForkId, GossipTopic, NetworkConfig, NetworkGlobals, TopicHash};
 use futures::prelude::*;
 use libp2p::{
     core::identity::Keypair,
@@ -147,7 +145,6 @@ impl<TSubstream: AsyncRead + AsyncWrite> Behaviour<TSubstream> {
     }
 
     /* Discovery / Peer management functions */
-
 
     /// Returns an iterator over all enr entries in the DHT.
     pub fn enr_entries(&mut self) -> Vec<Enr> {

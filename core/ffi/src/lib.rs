@@ -1,6 +1,8 @@
 use cast::i16;
 use env_logger::Env;
-use mothra::{cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage, Subscriber};
+use mothra::{
+    cli_app, gossip, rpc_request, rpc_response, Mothra, NetworkGlobals, NetworkMessage, Subscriber,
+};
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
@@ -47,7 +49,7 @@ struct Client;
 
 impl Client {
     pub fn new() -> Self {
-        Client{}
+        Client {}
     }
 }
 
@@ -57,13 +59,28 @@ impl Subscriber for Client {
         unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };
     }
 
-    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, mut data: Vec<u8>) {
+    fn receive_gossip(
+        &self,
+        message_id: String,
+        peer_id: String,
+        topic: String,
+        mut data: Vec<u8>,
+    ) {
         let message_id_length = i16(topic.len()).unwrap();
         let peer_id_length = i16(topic.len()).unwrap();
         let topic_length = i16(topic.len()).unwrap();
         let data_length = i16(data.len()).unwrap();
         unsafe {
-            RECEIVE_GOSSIP_PTR.unwrap()(message_id.as_ptr(), message_id_length, peer_id.as_ptr(), peer_id_length, topic.as_ptr(), topic_length, data.as_mut_ptr(), data_length)
+            RECEIVE_GOSSIP_PTR.unwrap()(
+                message_id.as_ptr(),
+                message_id_length,
+                peer_id.as_ptr(),
+                peer_id_length,
+                topic.as_ptr(),
+                topic_length,
+                data.as_mut_ptr(),
+                data_length,
+            )
         };
     }
 

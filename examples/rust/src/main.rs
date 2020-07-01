@@ -10,7 +10,7 @@ struct Client;
 
 impl Client {
     pub fn new() -> Self {
-        Client{}
+        Client {}
     }
 }
 
@@ -19,7 +19,7 @@ impl Subscriber for Client {
         println!("Rust: discovered peer");
         println!("peer={:?}", peer);
     }
-    
+
     fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>) {
         println!("Rust: received gossip");
         println!("message id={:?}", message_id);
@@ -27,7 +27,7 @@ impl Subscriber for Client {
         println!("topic={:?}", topic);
         println!("data={:?}", String::from_utf8_lossy(&data));
     }
-    
+
     fn receive_rpc(&self, method: String, req_resp: u8, peer: String, data: Vec<u8>) {
         println!("Rust: received rpc");
         println!("method={:?}", method);
@@ -87,14 +87,8 @@ fn main() {
     let log = slog.new(o!("Rust-Example" => "Mothra"));
     let enr_fork_id = [0u8; 32].to_vec();
     let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
-    let (network_globals, network_send, network_exit) = Mothra::new(
-        config,
-        enr_fork_id,
-        &executor,
-        client,
-        log.clone(),
-    )
-    .unwrap();
+    let (network_globals, network_send, network_exit) =
+        Mothra::new(config, enr_fork_id, &executor, client, log.clone()).unwrap();
 
     let dur = time::Duration::from_secs(5);
     loop {

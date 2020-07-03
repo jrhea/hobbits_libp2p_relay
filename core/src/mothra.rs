@@ -55,7 +55,8 @@ impl Mothra {
     ) -> error::Result<(Arc<NetworkGlobals>, mpsc::UnboundedSender<NetworkMessage>)> {
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
-
+        // Inject the executor into the discv5 network config.
+        config.network_config.discv5_config.executor = Some(Box::new(executor.clone()));
         // launch libp2p Network
         let (network_globals, mut libp2p) = LibP2PService::new(
             executor.clone(),
@@ -85,7 +86,7 @@ impl Mothra {
             log: log.clone(),
         };
 
-        spawn_mothra(network_service, &executor)?;
+        spawn_mothra(network_service, executor)?;
 
         Ok((network_globals, network_send))
     }

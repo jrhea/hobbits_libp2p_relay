@@ -28,6 +28,7 @@ base64 = "0.12.1"
 snap = "1.0.0"
 void = "1.0.2"
 target_info = "0.1.0"
+#discv5 = { path = "../../../discv5", package="discv5"}
 discv5 = { version = "0.1.0-alpha.5", features = ["libp2p"] }
 tiny-keccak = "2.0.2"
 bytes = "0.4.12"

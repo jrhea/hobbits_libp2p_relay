@@ -21,8 +21,7 @@ pub(crate) use protocol::{RPCProtocol, RPCRequest};
 
 pub use handler::SubstreamId;
 pub use methods::{
-    BlocksByRangeRequest, BlocksByRootRequest, GoodbyeReason, RPCResponseErrorCode, RequestId,
-    ResponseTermination, StatusMessage,
+    GoodbyeReason, RPCResponseErrorCode, RequestId, StatusMessage,
 };
 pub use protocol::{Protocol, RPCError};
 
@@ -58,8 +57,6 @@ pub enum RPCReceived {
     /// peer. The second parameter is a single chunk of a response. These go over *outbound*
     /// connections.
     Response(RequestId, RPCResponse),
-    /// Marks a request as completed
-    EndOfStream(RequestId, ResponseTermination),
 }
 
 impl std::fmt::Display for RPCSend {

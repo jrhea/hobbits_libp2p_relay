@@ -50,8 +50,10 @@ pub struct Behaviour {
     events: Vec<BehaviourEvent>,
     /// Queue of peers to disconnect.
     peers_to_dc: Vec<PeerId>,
-    /// The current meta data of the node, so respond to pings and get metadata
-    meta_data: MetaData,
+    /// The current meta data of the node
+    meta_data: Vec<u8>,
+    /// The current ping data of the node
+    ping_data: Vec<u8>,
     /// A cache of recently seen gossip messages. This is used to filter out any possible
     /// duplicates that may still be seen over gossipsub.
     // TODO: Remove this
@@ -252,12 +254,9 @@ impl Behaviour {
 
         let enr_fork_id = network_globals.local_fork_id();
 
-        let attnets = vec![];
+        let meta_data = network_globals.meta_data.read().clone();
 
-        let meta_data = MetaData {
-            seq_number: 1,
-            attnets,
-        };
+        let ping_data = network_globals.ping_data.read().clone();
 
         Ok(Behaviour {
             mothra_rpc: RPC::new(log.clone()),
@@ -268,6 +267,7 @@ impl Behaviour {
             peers_to_dc: Vec::new(),
             seen_gossip_messages: LruCache::new(100_000),
             meta_data,
+            ping_data,
             network_globals,
             enr_fork_id,
             log: behaviour_log,
@@ -336,8 +336,7 @@ impl Behaviour {
 
     /// Send a request to a peer over RPC.
     pub fn send_request(&mut self, peer_id: PeerId, request_id: RequestId, request: Request) {
-        // TODO: Not sure yet
-        //self.mothra_rpc.send_request(peer_id, request_id, request.into())
+        self.mothra_rpc.send_request(peer_id, request_id, request.into());
     }
 
     /// Send a successful response to a peer over RPC.
@@ -347,8 +346,7 @@ impl Behaviour {
         id: PeerRequestId,
         response: Response,
     ) {
-        // TODO: Not sure yet
-        //self.mothra_rpc.send_response(peer_id, id, response.into())
+        self.mothra_rpc.send_response(peer_id, id, response.into())
     }
 
     /// Inform the peer that their request produced an error.
@@ -397,51 +395,40 @@ impl Behaviour {
 
     /// Updates the current meta data of the node to match the local ENR.
     fn update_metadata(&mut self) {
-        self.meta_data.seq_number += 1;
-        self.meta_data.attnets = vec![];
+        //TODO: JR Add ability to update
+        //self.meta_data.seq_number += 1;
+        //self.meta_data.attnets = vec![];
     }
 
     /// Sends a Ping request to the peer.
-    /// TODO
     fn ping(&mut self, id: RequestId, peer_id: PeerId) {
-        /*
-            let ping = crate::rpc::Ping {
-                data: self.meta_data.seq_number,
-            };
-            debug!(self.log, "Sending Ping"; "request_id" => id, "peer_id" => peer_id.to_string());
+        debug!(self.log, "Sending Ping"; "request_id" => id, "peer_id" => peer_id.to_string());
 
-            self.mothra_rpc
-                .send_request(peer_id, id, RPCRequest::Ping(ping));
-        */
+        self.mothra_rpc
+           .send_request(peer_id, id, RPCRequest::Ping(self.ping_data.clone()));
     }
 
     /// Sends a Pong response to the peer.
-    /// TODO
     fn pong(&mut self, id: PeerRequestId, peer_id: PeerId) {
-        /*let ping = crate::rpc::Ping {
-            data: self.meta_data.seq_number,
-        };
+
         debug!(self.log, "Sending Pong"; "request_id" => id.1, "peer_id" => peer_id.to_string());
-        let event = RPCCodedResponse::Success(RPCResponse::Pong(ping));
+        let event = RPCCodedResponse::Success(RPCResponse::Pong(self.ping_data.clone()));
         self.mothra_rpc.send_response(peer_id, id, event);
-        */
     }
 
     /// Sends a METADATA request to a peer.
-    /// TODO
     fn send_meta_data_request(&mut self, peer_id: PeerId) {
+        debug!(self.log, "Sending MetaData request"; "peer_id" => peer_id.to_string());
         let event = RPCRequest::MetaData;
         self.mothra_rpc
             .send_request(peer_id, RequestId::Behaviour, event);
     }
 
     /// Sends a METADATA response to a peer.
-    /// TODO
     fn send_meta_data_response(&mut self, id: PeerRequestId, peer_id: PeerId) {
-        /*
+        debug!(self.log, "Sending MetaData response"; "peer_id" => peer_id.to_string());
         let event = RPCCodedResponse::Success(RPCResponse::MetaData(self.meta_data.clone()));
         self.mothra_rpc.send_response(peer_id, id, event);
-        */
     }
 
     /// Returns a reference to the peer manager to allow the swarm to notify the manager of peer
@@ -453,20 +440,13 @@ impl Behaviour {
     fn on_gossip_event(&mut self, event: GossipsubEvent) {
         match event {
             GossipsubEvent::Message(propagation_source, id, gs_msg) => {
-                // Note: We are keeping track here of the peer that sent us the message, not the
-                // peer that originally published the message.
-                // TODO: optionally remove LRU
-                if self.seen_gossip_messages.put(id.clone(), ()).is_none() {
-                    // if this message isn't a duplicate, notify the network
-                    self.events.push(BehaviourEvent::PubsubMessage {
-                        id,
-                        source: propagation_source,
-                        topics: gs_msg.topics,
-                        message: gs_msg.data,
-                    });
-                } else {
-                    debug!(self.log, "A duplicate gossipsub message was received"; "message_source" => format!("{}", gs_msg.source), "propagated_peer" => format!("{}",propagation_source));
-                }
+                //LRU logic should be implemented in client
+                self.events.push(BehaviourEvent::PubsubMessage {
+                    id,
+                    source: propagation_source,
+                    topics: gs_msg.topics,
+                    message: gs_msg.data,
+                });
             }
             GossipsubEvent::Subscribed { peer_id, topic } => {
                 self.events
@@ -535,8 +515,7 @@ impl Behaviour {
                     RPCRequest::Ping(ping) => {
                         // inform the peer manager and send the response
 
-                        //TODO: raise event to decode before calling ping_request
-
+                        //TODO: JR - peer manager won't be properly updated until i serialize externally
                         //self.peer_manager.ping_request(&peer_id, ping.data);
                         // send a ping response
                         self.pong(peer_request_id, peer_id);
@@ -554,7 +533,7 @@ impl Behaviour {
                             "peer_id" => peer_id.to_string());
                         self.peers_to_dc.push(peer_id.clone());
                         // TODO: do not propagate (Age comment)
-                        //TODO: raise event to decode before calling propagate_request
+                        //TODO: JR raise event to decode before calling propagate_request
                         //self.propagate_request(peer_request_id, peer_id, Request::Goodbye(reason));
                     }
                     /* Protocols propagated to the Network */
@@ -572,11 +551,11 @@ impl Behaviour {
                 match resp {
                     /* Behaviour managed protocols */
                     RPCResponse::Pong(ping) => {
-                        //ODO: raise event to decode
+                        //TODO: JR - raise event to decode
                         //self.peer_manager.pong_response(&peer_id, ping.data)
                     }
                     RPCResponse::MetaData(meta_data) => {
-                        //ODO: raise event to decode
+                        //TODO: JR - raise event to decode
                         //self.peer_manager.meta_data_response(&peer_id, meta_data)
                     }
                     /* Network propagated protocols */
@@ -584,21 +563,11 @@ impl Behaviour {
                         // inform the peer manager that we have received a status from a peer
                         self.peer_manager.peer_statusd(&peer_id);
                         // propagate the STATUS message upwards
-                        //TODO: raise event to decode
+                        //TODO: JR- raise event to decode
                         //self.propagate_response(id, peer_id, Response::Status(msg));
                     }
                     _ => (),
                 }
-            }
-            Ok(RPCReceived::EndOfStream(id, termination)) => {
-                //TODO: Not sure yet
-                /*
-                let response = match termination {
-                    ResponseTermination::BlocksByRange => Response::BlocksByRange(vec![]),
-                    ResponseTermination::BlocksByRoot => Response::BlocksByRoot(vec![]),
-                };
-                self.propagate_response(id, peer_id, response);
-                */
             }
         }
     }
@@ -714,20 +683,20 @@ impl Behaviour {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Request {
     /// A Status message.
-    Status(StatusMessage),
+    Status(Vec<u8>),
     /// A Goobye message.
-    Goodbye(GoodbyeReason),
+    Goodbye(Vec<u8>),
 }
 
-// TODO: Not sure yet
-/*impl std::convert::From<Request> for RPCRequest {
+
+impl std::convert::From<Request> for RPCRequest {
     fn from(req: Request) -> RPCRequest {
         match req {
             Request::Goodbye(r) => RPCRequest::Goodbye(r),
             Request::Status(s) => RPCRequest::Status(s),
         }
     }
-}*/
+}
 
 /// The type of RPC responses the Behaviour informs it has received, and allows for sending.
 ///
@@ -738,25 +707,17 @@ pub enum Request {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response {
     /// A Status message.
-    Status(StatusMessage),
+    Status(Vec<u8>),
 }
 
 //TODO: not sure yet
-/*impl std::convert::From<Response> for RPCCodedResponse {
+impl std::convert::From<Response> for RPCCodedResponse {
     fn from(resp: Response) -> RPCCodedResponse {
         match resp {
-            Response::BlocksByRoot(r) => match r {
-                Some(b) => RPCCodedResponse::Success(RPCResponse::BlocksByRoot(b)),
-                None => RPCCodedResponse::StreamTermination(ResponseTermination::BlocksByRoot),
-            },
-            Response::BlocksByRange(r) => match r {
-                Some(b) => RPCCodedResponse::Success(RPCResponse::BlocksByRange(b)),
-                None => RPCCodedResponse::StreamTermination(ResponseTermination::BlocksByRange),
-            },
             Response::Status(s) => RPCCodedResponse::Success(RPCResponse::Status(s)),
         }
     }
-}*/
+}
 
 /// Identifier of requests sent by a peer.
 pub type PeerRequestId = (ConnectionId, SubstreamId);

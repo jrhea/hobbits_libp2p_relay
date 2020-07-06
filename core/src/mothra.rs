@@ -49,6 +49,8 @@ impl Mothra {
     pub fn new(
         mut config: Config,
         enr_fork_id: Vec<u8>,
+        meta_data: Vec<u8>,
+        ping_data: Vec<u8>,
         executor: &TaskExecutor,
         client: Box<dyn Subscriber + Send>,
         log: slog::Logger,
@@ -62,6 +64,8 @@ impl Mothra {
             executor.clone(),
             &mut config.network_config,
             enr_fork_id,
+            meta_data,
+            ping_data,
             &log.clone(),
         )?;
 
@@ -248,7 +252,7 @@ pub fn rpc_request(
     log: slog::Logger,
 ) {
     let request_id: RequestId = RequestId::Behaviour;
-    let request: Request = Request::Goodbye(GoodbyeReason::ClientShutdown);
+    let request: Request = Request::Goodbye(data);
     let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
     let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
     network_send

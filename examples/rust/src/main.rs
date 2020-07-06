@@ -83,6 +83,8 @@ fn main() {
     let slog = Logger::root(drain.fuse(), o!());
     let log = slog.new(o!("Rust-Example" => "Rust-Example"));
     let enr_fork_id = [0u8; 32].to_vec();
+    let meta_data = [0u8; 32].to_vec();
+    let ping_data = [0u8; 32].to_vec();
     let client = Box::new(Client::new()) as Box<dyn Subscriber + Send>;
     let mut runtime = Runtime::new()
         .map_err(|e| format!("Failed to start runtime: {:?}", e))
@@ -99,6 +101,8 @@ fn main() {
             let (network_globals, network_send) = Mothra::new(
                 config,
                 enr_fork_id,
+                meta_data,
+                ping_data,
                 &task_executor,
                 client,
                 mothra_log.clone(),

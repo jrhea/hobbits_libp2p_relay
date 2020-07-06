@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::cognitive_complexity)]
 
-use super::methods::{RPCCodedResponse, RequestId, ResponseTermination};
+use super::methods::{RPCCodedResponse, RequestId};
 use super::protocol::{Protocol, RPCError, RPCProtocol, RPCRequest};
 use super::{RPCReceived, RPCSend};
 use crate::rpc::protocol::{InboundFramed, OutboundFramed};
@@ -207,11 +207,6 @@ impl InboundSubstreamState {
         // an RPC error
         let error = RPCCodedResponse::ServerError("Request timed out".into());
 
-        // The stream termination type is irrelevant, this will terminate the
-        // stream
-        let stream_termination =
-            RPCCodedResponse::StreamTermination(ResponseTermination::BlocksByRange);
-
         match std::mem::replace(self, InboundSubstreamState::Poisoned) {
             // if we are busy awaiting a send/flush add the termination to the queue
             InboundSubstreamState::ResponsePendingSend {
@@ -221,7 +216,6 @@ impl InboundSubstreamState {
             } => {
                 if !closing {
                     outbound_queue.push(error);
-                    outbound_queue.push(stream_termination);
                 }
                 // if the stream is closing after the send, allow it to finish
 
@@ -235,7 +229,6 @@ impl InboundSubstreamState {
             InboundSubstreamState::ResponsePendingFlush { substream, closing } => {
                 if !closing {
                     outbound_queue.push(error);
-                    outbound_queue.push(stream_termination);
                 }
                 // if the stream is closing after the send, allow it to finish
                 *self = InboundSubstreamState::ResponsePendingFlush { substream, closing }
@@ -390,17 +383,12 @@ impl RPCHandler {
 
         match std::mem::replace(substream_state, InboundSubstreamState::Poisoned) {
             InboundSubstreamState::ResponseIdle(substream) => {
-                // close the stream if there is no response
-                if let RPCCodedResponse::StreamTermination(_) = response {
-                    *substream_state = InboundSubstreamState::Closing(substream);
-                } else {
-                    // send the response
-                    // if it's a single rpc request or an error close the stream after.
-                    *substream_state = InboundSubstreamState::ResponsePendingSend {
-                        substream,
-                        message: response,
-                        closing: !res_is_multiple | res_is_error,
-                    }
+                // send the response
+                // if it's a single rpc request or an error close the stream after.
+                *substream_state = InboundSubstreamState::ResponsePendingSend {
+                    substream,
+                    message: response,
+                    closing: !res_is_multiple | res_is_error,
                 }
             }
             InboundSubstreamState::ResponsePendingSend {
@@ -1034,9 +1022,6 @@ impl ProtocolsHandler for RPCHandler {
                         let proto = entry.get().proto;
 
                         let received = match response {
-                            RPCCodedResponse::StreamTermination(t) => {
-                                Ok(RPCReceived::EndOfStream(id, t))
-                            }
                             RPCCodedResponse::Success(resp) => Ok(RPCReceived::Response(id, resp)),
                             RPCCodedResponse::InvalidRequest(ref r)
                             | RPCCodedResponse::ServerError(ref r)
@@ -1065,13 +1050,6 @@ impl ProtocolsHandler for RPCHandler {
                         self.outbound_substreams_delay.remove(delay_key);
                         entry.remove_entry();
                         self.update_keep_alive();
-                        // notify the application error
-                        if request.expected_responses() > 1 {
-                            // return an end of stream result
-                            return Poll::Ready(ProtocolsHandlerEvent::Custom(Ok(
-                                RPCReceived::EndOfStream(request_id, request.stream_termination()),
-                            )));
-                        }
 
                         // else we return an error, stream should not have closed early.
                         let outbound_err = HandlerErr::Outbound {
@@ -1110,23 +1088,6 @@ impl ProtocolsHandler for RPCHandler {
                             entry.remove_entry();
                             self.update_keep_alive();
 
-                            // report the stream termination to the user
-                            //
-                            // Streams can be terminated here if a responder tries to
-                            // continue sending responses beyond what we would expect. Here
-                            // we simply terminate the stream and report a stream
-                            // termination to the application
-                            let termination = match protocol {
-                                Protocol::BlocksByRange => Some(ResponseTermination::BlocksByRange),
-                                Protocol::BlocksByRoot => Some(ResponseTermination::BlocksByRoot),
-                                _ => None, // all other protocols are do not have multiple responses and we do not inform the user, we simply drop the stream.
-                            };
-
-                            if let Some(termination) = termination {
-                                return Poll::Ready(ProtocolsHandlerEvent::Custom(Ok(
-                                    RPCReceived::EndOfStream(request_id, termination),
-                                )));
-                            }
                         }
                         Poll::Pending => {
                             entry.get_mut().state = OutboundSubstreamState::Closing(substream);
@@ -1166,10 +1127,6 @@ fn apply_queued_responses(
             *new_items_to_send = true;
             // we have queued items
             match queue.remove(0) {
-                RPCCodedResponse::StreamTermination(_) => {
-                    // close the stream if this is a stream termination
-                    InboundSubstreamState::Closing(Box::new(substream))
-                }
                 chunk => InboundSubstreamState::ResponsePendingSend {
                     substream: Box::new(substream),
                     message: chunk,

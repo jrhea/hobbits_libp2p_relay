@@ -87,6 +87,8 @@ impl Service {
         executor: TaskExecutor,
         config: &NetworkConfig,
         enr_fork_id: EnrForkId,
+        meta_data: Vec<u8>,
+        ping_data: Vec<u8>,
         log: &slog::Logger,
     ) -> error::Result<(Arc<NetworkGlobals>, Self)> {
         let log = log.new(o!("service"=> "libp2p"));
@@ -102,6 +104,8 @@ impl Service {
         let network_globals = Arc::new(NetworkGlobals::new(
             enr.clone(),
             enr_fork_id.clone(),
+            meta_data,
+            ping_data,
             config.libp2p_port,
             config.discovery_port,
             &log,

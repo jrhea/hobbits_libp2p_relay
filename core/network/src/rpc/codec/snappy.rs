@@ -46,17 +46,12 @@ impl Encoder<RPCCodedResponse> for SnappyInboundCodec {
         let bytes = match item {
             RPCCodedResponse::Success(resp) => match resp {
                 RPCResponse::Status(res) => res,
-                RPCResponse::BlocksByRange(res) => res,
-                RPCResponse::BlocksByRoot(res) => res,
                 RPCResponse::Pong(res) => res,
                 RPCResponse::MetaData(res) => res,
             },
             RPCCodedResponse::InvalidRequest(err) => err.to_vec(),
             RPCCodedResponse::ServerError(err) => err.to_vec(),
             RPCCodedResponse::Unknown(err) => err.to_vec(),
-            RPCCodedResponse::StreamTermination(_) => {
-                unreachable!("Code error - attempting to encode a stream termination")
-            }
         };
         //  encoded bytes should be within `max_packet_size`
         if bytes.len() > self.max_packet_size {
@@ -130,24 +125,6 @@ impl Decoder for SnappyInboundCodec {
                             }
                         }
                     },
-                    Protocol::BlocksByRange => match self.protocol.version {
-                        Version::V1 => {
-                            if decoded_buffer.len() > 0 {
-                                Ok(Some(RPCRequest::BlocksByRange(decoded_buffer)))
-                            } else {
-                                Err(RPCError::InvalidData)
-                            }
-                        }
-                    },
-                    Protocol::BlocksByRoot => match self.protocol.version {
-                        Version::V1 => {
-                            if decoded_buffer.len() >= 0 {
-                                Ok(Some(RPCRequest::BlocksByRoot(decoded_buffer)))
-                            } else {
-                                Err(RPCError::InvalidData)
-                            }
-                        }
-                    },
                     Protocol::Ping => match self.protocol.version {
                         Version::V1 => {
                             if decoded_buffer.len() > 0 {
@@ -212,8 +189,6 @@ impl Encoder<RPCRequest> for SnappyOutboundCodec {
         let bytes = match item {
             RPCRequest::Status(req) => req,
             RPCRequest::Goodbye(req) => req,
-            RPCRequest::BlocksByRange(req) => req,
-            RPCRequest::BlocksByRoot(req) => req,
             RPCRequest::Ping(req) => req,
             RPCRequest::MetaData => return Ok(()), // no metadata to encode
         };
@@ -285,24 +260,6 @@ impl Decoder for SnappyOutboundCodec {
                         }
                     },
                     Protocol::Goodbye => Err(RPCError::InvalidData),
-                    Protocol::BlocksByRange => match self.protocol.version {
-                        Version::V1 => {
-                            if decoded_buffer.len() >= 0 {
-                                Ok(Some(RPCResponse::BlocksByRange(decoded_buffer)))
-                            } else {
-                                Err(RPCError::InvalidData)
-                            }
-                        }
-                    },
-                    Protocol::BlocksByRoot => match self.protocol.version {
-                        Version::V1 => {
-                            if decoded_buffer.len() >= 0 {
-                                Ok(Some(RPCResponse::BlocksByRoot(decoded_buffer)))
-                            } else {
-                                Err(RPCError::InvalidData)
-                            }
-                        }
-                    },
                     Protocol::Ping => match self.protocol.version {
                         Version::V1 => {
                             if decoded_buffer.len() > 0 {

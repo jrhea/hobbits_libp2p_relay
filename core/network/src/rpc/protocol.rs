@@ -7,7 +7,6 @@ use crate::rpc::{
         snappy::{SnappyInboundCodec, SnappyOutboundCodec},
         InboundCodec, OutboundCodec,
     },
-    methods::ResponseTermination,
 };
 use futures::future::Ready;
 use futures::prelude::*;
@@ -40,10 +39,6 @@ pub enum Protocol {
     Status,
     /// The Goodbye protocol name.
     Goodbye,
-    /// The `BlocksByRange` protocol name.
-    BlocksByRange,
-    /// The `BlocksByRoot` protocol name.
-    BlocksByRoot,
     /// The `Ping` protocol name.
     Ping,
     /// The `MetaData` protocol name.
@@ -68,8 +63,6 @@ impl std::fmt::Display for Protocol {
         let repr = match self {
             Protocol::Status => "status",
             Protocol::Goodbye => "goodbye",
-            Protocol::BlocksByRange => "beacon_blocks_by_range",
-            Protocol::BlocksByRoot => "beacon_blocks_by_root",
             Protocol::Ping => "ping",
             Protocol::MetaData => "metadata",
         };
@@ -107,8 +100,6 @@ impl UpgradeInfo for RPCProtocol {
         vec![
             ProtocolId::new(Protocol::Status, Version::V1, Encoding::Snappy),
             ProtocolId::new(Protocol::Goodbye, Version::V1, Encoding::Snappy),
-            ProtocolId::new(Protocol::BlocksByRange, Version::V1, Encoding::Snappy),
-            ProtocolId::new(Protocol::BlocksByRoot, Version::V1, Encoding::Snappy),
             ProtocolId::new(Protocol::Ping, Version::V1, Encoding::Snappy),
             ProtocolId::new(Protocol::MetaData, Version::V1, Encoding::Snappy),
         ]
@@ -217,8 +208,6 @@ where
 pub enum RPCRequest {
     Status(Vec<u8>),
     Goodbye(Vec<u8>),
-    BlocksByRange(Vec<u8>),
-    BlocksByRoot(Vec<u8>),
     Ping(Vec<u8>),
     MetaData,
 }
@@ -248,16 +237,6 @@ impl RPCRequest {
                 Version::V1,
                 Encoding::Snappy,
             )],
-            RPCRequest::BlocksByRange(_) => vec![ProtocolId::new(
-                Protocol::BlocksByRange,
-                Version::V1,
-                Encoding::Snappy,
-            )],
-            RPCRequest::BlocksByRoot(_) => vec![ProtocolId::new(
-                Protocol::BlocksByRoot,
-                Version::V1,
-                Encoding::Snappy,
-            )],
             RPCRequest::Ping(_) => vec![ProtocolId::new(
                 Protocol::Ping,
                 Version::V1,
@@ -278,8 +257,6 @@ impl RPCRequest {
         match self {
             RPCRequest::Status(_) => 1,
             RPCRequest::Goodbye(_) => 0,
-            RPCRequest::BlocksByRange(req) => 0,
-            RPCRequest::BlocksByRoot(req) => 0,
             RPCRequest::Ping(_) => 1,
             RPCRequest::MetaData => 1,
         }
@@ -290,25 +267,8 @@ impl RPCRequest {
         match self {
             RPCRequest::Status(_) => Protocol::Status,
             RPCRequest::Goodbye(_) => Protocol::Goodbye,
-            RPCRequest::BlocksByRange(_) => Protocol::BlocksByRange,
-            RPCRequest::BlocksByRoot(_) => Protocol::BlocksByRoot,
             RPCRequest::Ping(_) => Protocol::Ping,
             RPCRequest::MetaData => Protocol::MetaData,
-        }
-    }
-
-    /// Returns the `ResponseTermination` type associated with the request if a stream gets
-    /// terminated.
-    pub fn stream_termination(&self) -> ResponseTermination {
-        match self {
-            // this only gets called after `multiple_responses()` returns true. Therefore, only
-            // variants that have `multiple_responses()` can have values.
-            RPCRequest::BlocksByRange(_) => ResponseTermination::BlocksByRange,
-            RPCRequest::BlocksByRoot(_) => ResponseTermination::BlocksByRoot,
-            RPCRequest::Status(_) => unreachable!(),
-            RPCRequest::Goodbye(_) => unreachable!(),
-            RPCRequest::Ping(_) => unreachable!(),
-            RPCRequest::MetaData => unreachable!(),
         }
     }
 }
@@ -428,8 +388,6 @@ impl std::fmt::Display for RPCRequest {
         match self {
             RPCRequest::Status(status) => write!(f, "Status Message: {:?}", status),
             RPCRequest::Goodbye(reason) => write!(f, "Goodbye: {:?}", reason),
-            RPCRequest::BlocksByRange(req) => write!(f, "Blocks by range: {:?}", req),
-            RPCRequest::BlocksByRoot(req) => write!(f, "Blocks by root: {:?}", req),
             RPCRequest::Ping(ping) => write!(f, "Ping: {:?}", ping),
             RPCRequest::MetaData => write!(f, "MetaData request"),
         }

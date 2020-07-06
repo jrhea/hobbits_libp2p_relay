@@ -13,7 +13,9 @@ pub struct NetworkGlobals {
     /// The current local fork_id
     pub fork_id: RwLock<EnrForkId>,
     /// The current node's meta-data.
-    pub meta_data: RwLock<MetaData>,
+    pub meta_data: RwLock<Vec<u8>>,
+    /// The current node's ping-data.
+    pub ping_data: RwLock<Vec<u8>>,
     /// The local peer_id.
     pub peer_id: RwLock<PeerId>,
     /// Listening multiaddrs.
@@ -32,18 +34,17 @@ impl NetworkGlobals {
     pub fn new(
         enr: Enr,
         fork_id: EnrForkId,
+        meta_data: Vec<u8>,
+        ping_data: Vec<u8>,
         tcp_port: u16,
         udp_port: u16,
         log: &slog::Logger,
     ) -> Self {
-        let meta_data = RwLock::new(MetaData {
-            seq_number: 0,
-            attnets: vec![],
-        });
         NetworkGlobals {
             local_enr: RwLock::new(enr.clone()),
             fork_id: RwLock::new(fork_id.clone()),
-            meta_data,
+            meta_data: RwLock::new(meta_data),
+            ping_data: RwLock::new(ping_data),
             peer_id: RwLock::new(enr.peer_id()),
             listen_multiaddrs: RwLock::new(Vec::new()),
             listen_port_tcp: AtomicU16::new(tcp_port),

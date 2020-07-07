@@ -1087,7 +1087,6 @@ impl ProtocolsHandler for RPCHandler {
                             self.outbound_substreams_delay.remove(delay_key);
                             entry.remove_entry();
                             self.update_keep_alive();
-
                         }
                         Poll::Pending => {
                             entry.get_mut().state = OutboundSubstreamState::Closing(substream);

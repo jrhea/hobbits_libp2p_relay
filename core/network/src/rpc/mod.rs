@@ -20,9 +20,7 @@ pub(crate) use methods::{MetaData, Ping, RPCCodedResponse, RPCResponse};
 pub(crate) use protocol::{RPCProtocol, RPCRequest};
 
 pub use handler::SubstreamId;
-pub use methods::{
-    GoodbyeReason, RPCResponseErrorCode, RequestId, StatusMessage,
-};
+pub use methods::{GoodbyeReason, RPCResponseErrorCode, RequestId, StatusMessage};
 pub use protocol::{Protocol, RPCError};
 
 pub(crate) mod codec;

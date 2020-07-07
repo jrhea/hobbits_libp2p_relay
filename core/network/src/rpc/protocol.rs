@@ -1,12 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use super::methods::*;
-use crate::rpc::{
-    codec::{
-        base::{BaseInboundCodec, BaseOutboundCodec},
-        snappy::{SnappyInboundCodec, SnappyOutboundCodec},
-        InboundCodec, OutboundCodec,
-    },
+use crate::rpc::codec::{
+    base::{BaseInboundCodec, BaseOutboundCodec},
+    snappy::{SnappyInboundCodec, SnappyOutboundCodec},
+    InboundCodec, OutboundCodec,
 };
 use futures::future::Ready;
 use futures::prelude::*;

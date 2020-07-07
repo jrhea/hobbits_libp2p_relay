@@ -42,8 +42,8 @@ pub struct Mothra {
     network_globals: Arc<NetworkGlobals>,
     /// Probability of message propagation.
     propagation_percentage: Option<u8>,
-    // TODO: Make a struct that implements this functionality. 
-    // It should hold an array and a counter 
+    // TODO: Make a struct that implements this functionality.
+    // It should hold an array and a counter
     /// rpc requests
     requests: [Option<PeerRequestId>; 256],
     /// num active requests
@@ -247,7 +247,6 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
     Ok(())
 }
 
-
 // TODO: Consider removing these helper methods and simply using the network_send channel
 pub fn gossip(
     mut network_send: mpsc::UnboundedSender<NetworkMessage>,
@@ -278,7 +277,7 @@ pub fn rpc_request(
         .send(NetworkMessage::SendRequest {
             peer_id,
             request,
-            request_id
+            request_id,
         })
         .unwrap_or_else(|_| warn!(log, "Could not send RPC request to the network service"));
 }
@@ -298,7 +297,7 @@ pub fn rpc_response(
         .send(NetworkMessage::SendResponse {
             peer_id,
             response,
-            index
+            index,
         })
         .unwrap_or_else(|_| warn!(log, "Could not send RPC response to the network service"));
 }
@@ -318,7 +317,7 @@ pub enum NetworkMessage {
     SendResponse {
         peer_id: PeerId,
         response: Response,
-        index: u8
+        index: u8,
     },
     /// Publish a message.
     Publish {

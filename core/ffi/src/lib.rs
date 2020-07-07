@@ -55,9 +55,7 @@ impl Client {
 }
 
 impl Subscriber for Client {
-    fn init(&mut self, network_send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>) {
-
-    }
+    fn init(&mut self, network_send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>) {}
 
     fn discovered_peer(&self, peer: String) {
         let peer_length = i16(peer.len()).unwrap();
@@ -206,7 +204,17 @@ pub unsafe extern "C" fn network_start(
         log.new(o!("FFI" => "TaskExecutor")),
     );
     let (network_globals, network_send) = runtime
-        .block_on(async { Mothra::new(config, enr_fork_id, meta_data, ping_data, &task_executor, client, log.clone()) })
+        .block_on(async {
+            Mothra::new(
+                config,
+                enr_fork_id,
+                meta_data,
+                ping_data,
+                &task_executor,
+                client,
+                log.clone(),
+            )
+        })
         .unwrap();
     CONTEXT.push(Context {
         runtime,

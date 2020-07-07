@@ -131,7 +131,6 @@ impl Into<u64> for GoodbyeReason {
     }
 }
 
-
 /* RPC Handling and Grouping */
 // Collection of enums and structs used by the Codecs to encode/decode RPC messages
 
@@ -162,7 +161,6 @@ pub enum RPCCodedResponse {
 
     /// There was an unknown response.
     Unknown(ErrorType),
-
 }
 
 /// The code assigned to an erroneous `RPCResponse`.

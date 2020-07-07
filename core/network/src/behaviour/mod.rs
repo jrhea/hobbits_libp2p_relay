@@ -336,7 +336,8 @@ impl Behaviour {
 
     /// Send a request to a peer over RPC.
     pub fn send_request(&mut self, peer_id: PeerId, request_id: RequestId, request: Request) {
-        self.mothra_rpc.send_request(peer_id, request_id, request.into());
+        self.mothra_rpc
+            .send_request(peer_id, request_id, request.into());
     }
 
     /// Send a successful response to a peer over RPC.
@@ -405,12 +406,11 @@ impl Behaviour {
         debug!(self.log, "Sending Ping"; "request_id" => id, "peer_id" => peer_id.to_string());
 
         self.mothra_rpc
-           .send_request(peer_id, id, RPCRequest::Ping(self.ping_data.clone()));
+            .send_request(peer_id, id, RPCRequest::Ping(self.ping_data.clone()));
     }
 
     /// Sends a Pong response to the peer.
     fn pong(&mut self, id: PeerRequestId, peer_id: PeerId) {
-
         debug!(self.log, "Sending Pong"; "request_id" => id.1, "peer_id" => peer_id.to_string());
         let event = RPCCodedResponse::Success(RPCResponse::Pong(self.ping_data.clone()));
         self.mothra_rpc.send_response(peer_id, id, event);
@@ -514,7 +514,10 @@ impl Behaviour {
                     /* Behaviour managed protocols: Ping and Metadata */
                     RPCRequest::Ping(ping) => {
                         // inform the peer manager and send the response
-                        debug!(self.log, "Behaviour RPCRequest::Ping received from: {:?}", peer_id);
+                        debug!(
+                            self.log,
+                            "Behaviour RPCRequest::Ping received from: {:?}", peer_id
+                        );
                         //TODO: JR - peer manager won't be properly updated until i serialize externally
                         //self.peer_manager.ping_request(&peer_id, ping.data);
                         // send a ping response
@@ -538,7 +541,10 @@ impl Behaviour {
                     }
                     /* Protocols propagated to the Network */
                     RPCRequest::Status(msg) => {
-                        debug!(self.log, "Behaviour RPCRequest::Status received from: {:?}", peer_id);
+                        debug!(
+                            self.log,
+                            "Behaviour RPCRequest::Status received from: {:?}", peer_id
+                        );
                         // inform the peer manager that we have received a status from a peer
                         self.peer_manager.peer_statusd(&peer_id);
                         // propagate the STATUS message upwards
@@ -551,17 +557,26 @@ impl Behaviour {
                 match resp {
                     /* Behaviour managed protocols */
                     RPCResponse::Pong(ping) => {
-                        debug!(self.log, "Behaviour RPCResponse::Pong received from: {:?}", peer_id);
+                        debug!(
+                            self.log,
+                            "Behaviour RPCResponse::Pong received from: {:?}", peer_id
+                        );
                         //TODO: JR - raise event to decode
                         //self.peer_manager.pong_response(&peer_id, ping.data)
                     }
                     RPCResponse::MetaData(meta_data) => {
-                        debug!(self.log, "Behaviour RPCResponse::MetaData received from: {:?}", peer_id);
+                        debug!(
+                            self.log,
+                            "Behaviour RPCResponse::MetaData received from: {:?}", peer_id
+                        );
                         //self.peer_manager.meta_data_response(&peer_id, meta_data)
                     }
                     /* Network propagated protocols */
                     RPCResponse::Status(msg) => {
-                        debug!(self.log, "Behaviour RPCResponse::Status received from: {:?}", peer_id);
+                        debug!(
+                            self.log,
+                            "Behaviour RPCResponse::Status received from: {:?}", peer_id
+                        );
                         // inform the peer manager that we have received a status from a peer
                         self.peer_manager.peer_statusd(&peer_id);
                         // propagate the STATUS message upwards
@@ -689,7 +704,6 @@ pub enum Request {
     /// A Goobye message.
     Goodbye(Vec<u8>),
 }
-
 
 impl std::convert::From<Request> for RPCRequest {
     fn from(req: Request) -> RPCRequest {

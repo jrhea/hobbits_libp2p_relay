@@ -22,6 +22,7 @@ pub type ReceiveGossipType = fn(message_id: String, peer_id: String, topic: Stri
 pub type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: Vec<u8>);
 
 pub trait Subscriber {
+    fn init(&mut self, send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>);
     fn discovered_peer(&self, peer: String);
     fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>);
     fn receive_rpc(&self, method: String, req_resp: u8, peer: String, data: Vec<u8>);
@@ -41,6 +42,12 @@ pub struct Mothra {
     network_globals: Arc<NetworkGlobals>,
     /// Probability of message propagation.
     propagation_percentage: Option<u8>,
+    // TODO: Make a struct that implements this functionality. 
+    // It should hold an array and a counter 
+    /// rpc requests
+    requests: [Option<PeerRequestId>; 256],
+    /// num active requests
+    num_requests: u8,
     /// The logger for the network service.
     log: slog::Logger,
 }
@@ -52,11 +59,12 @@ impl Mothra {
         meta_data: Vec<u8>,
         ping_data: Vec<u8>,
         executor: &TaskExecutor,
-        client: Box<dyn Subscriber + Send>,
+        mut client: Box<dyn Subscriber + Send>,
         log: slog::Logger,
     ) -> error::Result<(Arc<NetworkGlobals>, mpsc::UnboundedSender<NetworkMessage>)> {
         // build the network channel
         let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
+        client.init(network_send.clone(), enr_fork_id.clone());
         // Inject the executor into the discv5 network config.
         config.network_config.discv5_config.executor = Some(Box::new(executor.clone()));
         // launch libp2p Network
@@ -87,6 +95,8 @@ impl Mothra {
             network_send: network_send.clone(),
             network_globals: network_globals.clone(),
             propagation_percentage: config.network_config.propagation_percentage,
+            requests: [None; 256],
+            num_requests: 0,
             log: log.clone(),
         };
 
@@ -126,10 +136,19 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                 Some(message) = mothra.network_recv.recv() => {
                     match message {
                         NetworkMessage::SendRequest{ peer_id, request, request_id } => {
+                            debug!(mothra.log, "SendRequest to peer: {:?} request type: {:?}", peer_id, request);
                             mothra.libp2p.send_request(peer_id, request_id, request);
                         }
-                        NetworkMessage::SendResponse{ peer_id, response, id } => {
+                        NetworkMessage::SendResponse{ peer_id, response, index } => {
+                            debug!(mothra.log, "SendResponse to peer: {:?} response type: {:?}", peer_id, response);
+                            // Find the PeerRequestId
+                            let id = mothra.requests[index as usize].unwrap();
+                            // send response to libp2p
                             mothra.libp2p.send_response(peer_id, id, response);
+                            // zero out the old PeerRequestId
+                            mothra.requests[index as usize] = None;
+                            // decrement the numrequests
+                            mothra.num_requests -= 1;
                         }
                         NetworkMessage::Propagate {
                             propagation_source,
@@ -176,18 +195,13 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                     match libp2p_event {
                         Libp2pEvent::Behaviour(event) => match event {
                             BehaviourEvent::RequestReceived{peer_id, id, request} => {
-                                debug!(mothra.log, "{:?} received from: {:?}", peer_id, request);
-                                if let Request::Goodbye(_) = request {
-                                    // if we received a Goodbye message, drop and ban the peer
-                                    //peers_to_ban.push(peer_id.clone());
-                                    // TODO: remove this: https://github.com/sigp/lighthouse/issues/1240
-                                    mothra.libp2p.disconnect_and_ban_peer(
-                                        peer_id.clone(),
-                                        std::time::Duration::from_secs(BAN_PEER_TIMEOUT),
-                                    );
-
-                                };
-
+                                debug!(mothra.log, "Mothra {:?} received from: {:?} id: {:?}", request, peer_id, id);
+                                // Save the PeerRequestId
+                                mothra.requests[mothra.num_requests as usize] = Some(id);
+                                // Call out to bindings to encode and store the index of the PeerRequestId
+                                mothra.client.receive_rpc("Status".to_string(), 1, peer_id.to_string(), vec![mothra.num_requests]);
+                                // incrememnt the variable that indicates the total number of indexes
+                                mothra.num_requests += 1;
                             }
                             BehaviourEvent::ResponseReceived{peer_id, id, response} => {
                                 debug!(mothra.log, "{:?} received from: {:?}", peer_id, response);
@@ -197,6 +211,7 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                             }
                             BehaviourEvent::StatusPeer(peer_id) => {
                                 debug!(mothra.log, "Status request received from: {:?}", peer_id);
+                                mothra.client.receive_rpc("Status".to_string(), 0, peer_id.to_string(), vec![])
                             }
                             BehaviourEvent::PubsubMessage {
                                 id,
@@ -208,7 +223,7 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                                 mothra.client.receive_gossip(id.to_string(), source.to_string(), topics[0].to_string(), message.clone());
                             }
                             BehaviourEvent::PeerSubscribed(peer_id, topic) => {
-                                debug!(mothra.log, "Subscribed to: {:?} for topic: {:?}", peer_id, topic);
+                                //debug!(mothra.log, "Subscribed to: {:?} for topic: {:?}", peer_id, topic);
                             },
                         }
                         Libp2pEvent::NewListenAddr(multiaddr) => {
@@ -216,6 +231,8 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                         }
                         Libp2pEvent::PeerConnected{ peer_id, endpoint,} => {
                             debug!(mothra.log, "Peer Connected"; "peer_id" => peer_id.to_string(), "endpoint" => format!("{:?}", endpoint));
+                            mothra.client.receive_rpc("Status".to_string(), 0, peer_id.to_string(), vec![])
+
                         }
                         Libp2pEvent::PeerDisconnected{ peer_id, endpoint,} => {
                             debug!(mothra.log, "Peer Disconnected";  "peer_id" => peer_id.to_string(), "endpoint" => format!("{:?}", endpoint));
@@ -230,6 +247,8 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
     Ok(())
 }
 
+
+// TODO: Consider removing these helper methods and simply using the network_send channel
 pub fn gossip(
     mut network_send: mpsc::UnboundedSender<NetworkMessage>,
     topic: String,
@@ -252,14 +271,14 @@ pub fn rpc_request(
     log: slog::Logger,
 ) {
     let request_id: RequestId = RequestId::Behaviour;
-    let request: Request = Request::Goodbye(data);
+    let request: Request = Request::Status(data);
     let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
     let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
     network_send
         .send(NetworkMessage::SendRequest {
             peer_id,
             request,
-            request_id,
+            request_id
         })
         .unwrap_or_else(|_| warn!(log, "Could not send RPC request to the network service"));
 }
@@ -271,27 +290,17 @@ pub fn rpc_response(
     data: Vec<u8>,
     log: slog::Logger,
 ) {
-    //TODO: an event will have to be raised in the libp2p service that provides the
-    // PeerRequestId.  The client code will then have to decide how to answer it
-    // AND make sure it is serialized properly
-
-    /*let id: PeerRequestId = PeerRequestId
-    let response: Response = Response::Status(StatusMessage {
-        fork_digest: [0;4],
-        finalized_root: vec![],
-        finalized_epoch: 0,
-        head_root: vec![],
-        head_slot: 0
-    });
+    let index = 0;
+    let response: Response = Response::Status(data);
     let bytes = bs58::decode(peer.as_str()).into_vec().unwrap();
     let peer_id = PeerId::from_bytes(bytes).map_err(|_| ()).unwrap();
     network_send
-        .send(NetworkMessage::SendResponse{
+        .send(NetworkMessage::SendResponse {
             peer_id,
             response,
-            id
+            index
         })
-        .unwrap_or_else(|_| warn!(log, "Could not send RPC response to the network service"));*/
+        .unwrap_or_else(|_| warn!(log, "Could not send RPC response to the network service"));
 }
 
 /// Types of messages that the network service can receive.
@@ -309,7 +318,7 @@ pub enum NetworkMessage {
     SendResponse {
         peer_id: PeerId,
         response: Response,
-        id: PeerRequestId,
+        index: u8
     },
     /// Publish a message.
     Publish {

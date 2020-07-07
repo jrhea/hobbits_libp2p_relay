@@ -514,7 +514,7 @@ impl Behaviour {
                     /* Behaviour managed protocols: Ping and Metadata */
                     RPCRequest::Ping(ping) => {
                         // inform the peer manager and send the response
-
+                        debug!(self.log, "Behaviour RPCRequest::Ping received from: {:?}", peer_id);
                         //TODO: JR - peer manager won't be properly updated until i serialize externally
                         //self.peer_manager.ping_request(&peer_id, ping.data);
                         // send a ping response
@@ -529,7 +529,7 @@ impl Behaviour {
                         // let the peer manager know this peer is in the process of disconnecting
                         self.peer_manager._disconnecting_peer(&peer_id);
                         // queue for disconnection without a goodbye message
-                        debug!(self.log, "Received a Goodbye, queueing for disconnection";
+                        debug!(self.log, "Behaviour received a Goodbye, queueing for disconnection";
                             "peer_id" => peer_id.to_string());
                         self.peers_to_dc.push(peer_id.clone());
                         // TODO: do not propagate (Age comment)
@@ -538,11 +538,11 @@ impl Behaviour {
                     }
                     /* Protocols propagated to the Network */
                     RPCRequest::Status(msg) => {
+                        debug!(self.log, "Behaviour RPCRequest::Status received from: {:?}", peer_id);
                         // inform the peer manager that we have received a status from a peer
                         self.peer_manager.peer_statusd(&peer_id);
                         // propagate the STATUS message upwards
-                        //TODO: raise event to decode before calling propagate_request
-                        //self.propagate_request(peer_request_id, peer_id, Request::Status(msg))
+                        self.propagate_request(peer_request_id, peer_id, Request::Status(msg))
                     }
                     _ => (),
                 }
@@ -551,20 +551,22 @@ impl Behaviour {
                 match resp {
                     /* Behaviour managed protocols */
                     RPCResponse::Pong(ping) => {
+                        debug!(self.log, "Behaviour RPCResponse::Pong received from: {:?}", peer_id);
                         //TODO: JR - raise event to decode
                         //self.peer_manager.pong_response(&peer_id, ping.data)
                     }
                     RPCResponse::MetaData(meta_data) => {
-                        //TODO: JR - raise event to decode
+                        debug!(self.log, "Behaviour RPCResponse::MetaData received from: {:?}", peer_id);
                         //self.peer_manager.meta_data_response(&peer_id, meta_data)
                     }
                     /* Network propagated protocols */
                     RPCResponse::Status(msg) => {
+                        debug!(self.log, "Behaviour RPCResponse::Status received from: {:?}", peer_id);
                         // inform the peer manager that we have received a status from a peer
                         self.peer_manager.peer_statusd(&peer_id);
                         // propagate the STATUS message upwards
                         //TODO: JR- raise event to decode
-                        //self.propagate_response(id, peer_id, Response::Status(msg));
+                        self.propagate_response(id, peer_id, Response::Status(msg));
                     }
                     _ => (),
                 }

@@ -1,11 +1,11 @@
 extern crate target_info;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use env_logger::Env;
-use mothra::{cli_app, gossip, Mothra, Subscriber, TaskExecutor};
+use mothra::{cli_app, gossip, Mothra, Subscriber, TaskExecutor, NetworkMessage};
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::{thread, time};
 use tokio::runtime::Runtime;
-use tokio::{signal, task};
+use tokio::{signal, task, sync::mpsc};
 
 struct Client;
 
@@ -16,6 +16,10 @@ impl Client {
 }
 
 impl Subscriber for Client {
+    fn init(&mut self, network_send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>) {
+
+    }
+    
     fn discovered_peer(&self, peer: String) {
         println!("Rust: discovered peer");
         println!("peer={:?}", peer);

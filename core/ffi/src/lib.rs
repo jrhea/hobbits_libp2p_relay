@@ -55,6 +55,10 @@ impl Client {
 }
 
 impl Subscriber for Client {
+    fn init(&mut self, network_send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>) {
+
+    }
+
     fn discovered_peer(&self, peer: String) {
         let peer_length = i16(peer.len()).unwrap();
         unsafe { DISCOVERED_PEER_PTR.unwrap()(peer.as_ptr(), peer_length) };

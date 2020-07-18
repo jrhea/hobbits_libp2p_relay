@@ -23,7 +23,7 @@ impl Subscriber for Client {
         println!("peer={:?}", peer);
     }
 
-    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>) {
+    fn receive_gossip(&self, message_id: String, sequence_number: u64, agent_string: String, peer_id: String, topic: String, data: Vec<u8>) {
         println!("Rust: received gossip");
         println!("message id={:?}", message_id);
         println!("peer id={:?}", peer_id);

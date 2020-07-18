@@ -24,7 +24,7 @@ pub type ReceiveRpcType = fn(method: String, req_resp: u8, peer: String, data: V
 pub trait Subscriber {
     fn init(&mut self, send: mpsc::UnboundedSender<NetworkMessage>, fork_id: Vec<u8>);
     fn discovered_peer(&self, peer: String);
-    fn receive_gossip(&self, message_id: String, peer_id: String, topic: String, data: Vec<u8>);
+    fn receive_gossip(&self, message_id: String, sequence_number: u64, agent_string: String, peer_id: String, topic: String, data: Vec<u8>);
     fn receive_rpc(&self, method: String, req_resp: u8, peer: String, data: Vec<u8>);
 }
 
@@ -215,12 +215,14 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                             }
                             BehaviourEvent::PubsubMessage {
                                 id,
+                                sequence_number,
+                                agent_string,
                                 source,
                                 topics,
                                 message
                             } => {
-                                debug!(mothra.log, "Gossip message received from: {:?}", source);
-                                mothra.client.receive_gossip(id.to_string(), source.to_string(), topics[0].to_string(), message.clone());
+                                debug!(mothra.log, "Gossip message received from: {:?} topic: {:?}", source, topics);
+                                mothra.client.receive_gossip(id.to_string(), sequence_number, agent_string, source.to_string(), topics[0].to_string(), message.clone());
                             }
                             BehaviourEvent::PeerSubscribed(peer_id, topic) => {
                                 //debug!(mothra.log, "Subscribed to: {:?} for topic: {:?}", peer_id, topic);

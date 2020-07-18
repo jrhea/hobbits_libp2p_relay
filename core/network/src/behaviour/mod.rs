@@ -54,10 +54,6 @@ pub struct Behaviour {
     meta_data: Vec<u8>,
     /// The current ping data of the node
     ping_data: Vec<u8>,
-    /// A cache of recently seen gossip messages. This is used to filter out any possible
-    /// duplicates that may still be seen over gossipsub.
-    // TODO: Remove this
-    seen_gossip_messages: LruCache<MessageId, ()>,
     /// A collections of variables accessible outside the network service.
     network_globals: Arc<NetworkGlobals>,
     /// Keeps track of the current EnrForkId for upgrading gossipsub topics.
@@ -265,7 +261,6 @@ impl Behaviour {
             peer_manager: PeerManager::new(local_key, config, network_globals.clone(), log)?,
             events: Vec::new(),
             peers_to_dc: Vec::new(),
-            seen_gossip_messages: LruCache::new(100_000),
             meta_data,
             ping_data,
             network_globals,
@@ -440,9 +435,13 @@ impl Behaviour {
     fn on_gossip_event(&mut self, event: GossipsubEvent) {
         match event {
             GossipsubEvent::Message(propagation_source, id, gs_msg) => {
-                //LRU logic should be implemented in client
+
+                let client = self.network_globals.client(&propagation_source);
+                let agent_string = client.agent_string.unwrap_or_default();
                 self.events.push(BehaviourEvent::PubsubMessage {
                     id,
+                    sequence_number: gs_msg.sequence_number,
+                    agent_string: agent_string,
                     source: propagation_source,
                     topics: gs_msg.topics,
                     message: gs_msg.data,
@@ -769,6 +768,10 @@ pub enum BehaviourEvent {
     PubsubMessage {
         /// The gossipsub message id. Used when propagating blocks after validation.
         id: MessageId,
+        /// The message seqnr
+        sequence_number: u64,
+        /// peer client info
+        agent_string: String,
         /// The peer from which we received this message, not the peer that published it.
         source: PeerId,
         /// The topics that this message was sent on.

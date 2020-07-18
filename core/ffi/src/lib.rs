@@ -65,6 +65,8 @@ impl Subscriber for Client {
     fn receive_gossip(
         &self,
         message_id: String,
+        sequence_number: u64,
+        agent_string: String,
         peer_id: String,
         topic: String,
         mut data: Vec<u8>,

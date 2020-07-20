@@ -13,6 +13,8 @@ use clap::ArgMatches;
 use slog::{debug, info, o, trace, warn, Drain, Level, Logger};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use parking_lot::RwLock;
+use std::sync::atomic::{AtomicU8,Ordering};
 
 /// The time in seconds that a peer will be banned and prevented from reconnecting.
 const BAN_PEER_TIMEOUT: u64 = 30;
@@ -45,9 +47,9 @@ pub struct Mothra {
     // TODO: Make a struct that implements this functionality.
     // It should hold an array and a counter
     /// rpc requests
-    requests: [Option<PeerRequestId>; 256],
+    requests: RwLock<[Option<PeerRequestId>; 256]>,
     /// num active requests
-    num_requests: u8,
+    num_requests:  AtomicU8,
     /// The logger for the network service.
     log: slog::Logger,
 }
@@ -95,8 +97,8 @@ impl Mothra {
             network_send: network_send.clone(),
             network_globals: network_globals.clone(),
             propagation_percentage: config.network_config.propagation_percentage,
-            requests: [None; 256],
-            num_requests: 0,
+            requests: RwLock::new([None; 256]),
+            num_requests: AtomicU8::new(0),
             log: log.clone(),
         };
 
@@ -142,13 +144,13 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                         NetworkMessage::SendResponse{ peer_id, response, index } => {
                             debug!(mothra.log, "SendResponse to peer: {:?} response type: {:?}", peer_id, response);
                             // Find the PeerRequestId
-                            let id = mothra.requests[index as usize].unwrap();
+                            let id = mothra.requests.read()[index as usize].unwrap();
                             // send response to libp2p
                             mothra.libp2p.send_response(peer_id, id, response);
                             // zero out the old PeerRequestId
-                            mothra.requests[index as usize] = None;
+                            mothra.requests.write()[index as usize] = None;
                             // decrement the numrequests
-                            mothra.num_requests -= 1;
+                            mothra.num_requests.fetch_sub(1, Ordering::SeqCst);
                         }
                         NetworkMessage::Propagate {
                             propagation_source,
@@ -197,11 +199,11 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                             BehaviourEvent::RequestReceived{peer_id, id, request} => {
                                 debug!(mothra.log, "Mothra {:?} received from: {:?} id: {:?}", request, peer_id, id);
                                 // Save the PeerRequestId
-                                mothra.requests[mothra.num_requests as usize] = Some(id);
+                                mothra.requests.write()[mothra.num_requests.load(Ordering::SeqCst) as usize] = Some(id);
                                 // Call out to bindings to encode and store the index of the PeerRequestId
-                                mothra.client.receive_rpc("Status".to_string(), 1, peer_id.to_string(), vec![mothra.num_requests]);
+                                mothra.client.receive_rpc("Status".to_string(), 1, peer_id.to_string(), vec![mothra.num_requests.load(Ordering::SeqCst)]);
                                 // incrememnt the variable that indicates the total number of indexes
-                                mothra.num_requests += 1;
+                                mothra.num_requests.fetch_add(1, Ordering::SeqCst);
                             }
                             BehaviourEvent::ResponseReceived{peer_id, id, response} => {
                                 debug!(mothra.log, "{:?} received from: {:?}", peer_id, response);

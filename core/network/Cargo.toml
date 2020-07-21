@@ -28,13 +28,13 @@ base64 = "0.12.1"
 snap = "1.0.0"
 void = "1.0.2"
 target_info = "0.1.0"
-discv5 = { git = "https://github.com/jrhea/discv5.git", rev = "181400f9331eb4c73a2b44585f6ca7ba96510aa2", features = ["libp2p"] }
+discv5 = { git = "https://github.com/jrhea/discv5.git", rev = "37b87f6cc53c8fc695d9b0afc141634916a3a201", features = ["libp2p"] }
 tiny-keccak = "2.0.2"
 bytes = "0.4.12"
 
 [dependencies.libp2p]
-git = "https://github.com/jrhea/rust-libp2p"
-rev = "75bbe97c6826f970fbc7f2c00438d545f40bedc2"
+git = "https://github.com/sigp/rust-libp2p"
+rev = "147bb43fa56c1b84253606eabedb0794eeed8b94"
 default-features = false
 features = ["websocket", "identify", "mplex", "yamux", "noise", "gossipsub", "dns", "secio", "tcp-tokio"] 
 

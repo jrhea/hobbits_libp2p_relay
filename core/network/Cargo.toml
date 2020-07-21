@@ -33,8 +33,8 @@ tiny-keccak = "2.0.2"
 bytes = "0.4.12"
 
 [dependencies.libp2p]
-git = "https://github.com/sigp/rust-libp2p"
-rev = "147bb43fa56c1b84253606eabedb0794eeed8b94"
+git = "https://github.com/jrhea/rust-libp2p"
+rev = "4d597460a0c25dffda0cf412b5c48e7b1d36dffd"
 default-features = false
 features = ["websocket", "identify", "mplex", "yamux", "noise", "gossipsub", "dns", "secio", "tcp-tokio"] 
 

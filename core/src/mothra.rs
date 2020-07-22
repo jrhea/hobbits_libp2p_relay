@@ -144,13 +144,20 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                         NetworkMessage::SendResponse{ peer_id, response, index } => {
                             debug!(mothra.log, "SendResponse to peer: {:?} response type: {:?}", peer_id, response);
                             // Find the PeerRequestId
-                            let id = mothra.requests.read()[index as usize].unwrap();
-                            // send response to libp2p
-                            mothra.libp2p.send_response(peer_id, id, response);
-                            // zero out the old PeerRequestId
-                            mothra.requests.write()[index as usize] = None;
-                            // decrement the numrequests
-                            mothra.num_requests.fetch_sub(1, Ordering::SeqCst);
+                            match mothra.requests.read()[index as usize] {
+                                Some(id) => {
+                                    // zero out the old PeerRequestId
+                                    mothra.requests.write()[index as usize] = None;
+                                    // decrement the numrequests
+                                    mothra.num_requests.fetch_sub(1, Ordering::SeqCst);
+                                    // send response to libp2p
+                                    mothra.libp2p.send_response(peer_id, id, response);
+                                },
+                                None => {
+                                    warn!(mothra.log, "Issue with match request/response ids");
+                                }
+                            }
+
                         }
                         NetworkMessage::Propagate {
                             propagation_source,

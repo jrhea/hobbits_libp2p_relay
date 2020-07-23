@@ -143,11 +143,9 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                         }
                         NetworkMessage::SendResponse{ peer_id, response, index } => {
                             debug!(mothra.log, "SendResponse to peer: {:?} response type: {:?}", peer_id, response);
-                            // Find the PeerRequestId
+                            
                             match mothra.requests.read()[index as usize] {
                                 Some(id) => {
-                                    // zero out the old PeerRequestId
-                                    mothra.requests.write()[index as usize] = None;
                                     // decrement the numrequests
                                     mothra.num_requests.fetch_sub(1, Ordering::SeqCst);
                                     // send response to libp2p
@@ -157,6 +155,10 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                                     warn!(mothra.log, "Issue with match request/response ids");
                                 }
                             }
+
+                            // zero out the old PeerRequestId
+                            mothra.requests.write()[index as usize] = None;
+                            
 
                         }
                         NetworkMessage::Propagate {
@@ -205,12 +207,13 @@ fn spawn_mothra(mut mothra: Mothra, executor: &TaskExecutor) -> error::Result<()
                         Libp2pEvent::Behaviour(event) => match event {
                             BehaviourEvent::RequestReceived{peer_id, id, request} => {
                                 debug!(mothra.log, "Mothra {:?} received from: {:?} id: {:?}", request, peer_id, id);
+                                let index = mothra.num_requests.load(Ordering::SeqCst);
                                 // Save the PeerRequestId
-                                mothra.requests.write()[mothra.num_requests.load(Ordering::SeqCst) as usize] = Some(id);
-                                // Call out to bindings to encode and store the index of the PeerRequestId
-                                mothra.client.receive_rpc("Status".to_string(), 1, peer_id.to_string(), vec![mothra.num_requests.load(Ordering::SeqCst)]);
+                                mothra.requests.write()[index as usize] = Some(id);
                                 // incrememnt the variable that indicates the total number of indexes
                                 mothra.num_requests.fetch_add(1, Ordering::SeqCst);
+                                // Call out to bindings to encode and store the index of the PeerRequestId
+                                mothra.client.receive_rpc("Status".to_string(), 1, peer_id.to_string(), vec![index]);
                             }
                             BehaviourEvent::ResponseReceived{peer_id, id, response} => {
                                 debug!(mothra.log, "{:?} received from: {:?}", peer_id, response);
